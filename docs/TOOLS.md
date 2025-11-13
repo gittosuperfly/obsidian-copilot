@@ -81,10 +81,10 @@ The system uses a three-layer approach for providing tool instructions to LLMs:
 ### localSearch CiC Prompting Flow
 
 - CiC: Corpus in Context https://arxiv.org/pdf/2406.13121
-- **Instruction First**: `CopilotPlusChainRunner` now assembles the localSearch payload via `buildLocalSearchInnerContent`, ensuring citation guidance (e.g., `<guidance>` rules) tops the XML block before any documents.
+- **Instruction First**: `AdvancedChainRunner` now assembles the localSearch payload via `buildLocalSearchInnerContent`, ensuring citation guidance (e.g., `<guidance>` rules) tops the XML block before any documents.
 - **Documents Next**: Search hits are serialized once through `formatSearchResultsForLLM`; the helper simply appends them after guidance, keeping the documents section untouched but clearly separated.
 - **Question Last**: `renderCiCMessage` formats the final prompt so any context precedes the user's original query; this matches the CiC recommendation for instruction → context → query ordering.
-  - **CopilotPlus**: Uses `LayerToMessagesConverter` which adds `[User query]:` label when merging L3+L5 content from envelope
+  - **Advanced chain**: Uses `LayerToMessagesConverter` which adds `[User query]:` label when merging L3+L5 content from envelope
   - **AutonomousAgent**: Uses `ensureCiCOrderingWithQuestion` which adds `[User query]:` label to clearly separate tool results from original query in iterative loop
   - **Consistency**: Both chains use the same `[User query]:` label format for uniform prompting across the codebase
 - **Reusable Wrapping**: `wrapLocalSearchPayload` centralizes the `<localSearch>` tag creation (including optional `timeRange`), making the layout reusable for future chains without copying string glue.
@@ -190,10 +190,10 @@ If the tool is configurable (not always-enabled), add its ID to the default enab
 ```typescript
 autonomousAgentEnabledToolIds: [
   "localSearch",
-  "webSearch",
-  "pomodoro",
-  "youtubeTranscription",
+  "readNote",
   "writeToFile",
+  "replaceInFile",
+  "updateMemory",
   "myNewTool"  // Add your tool ID here
 ],
 ```

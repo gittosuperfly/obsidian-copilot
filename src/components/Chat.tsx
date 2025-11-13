@@ -35,12 +35,11 @@ import ChainManager from "@/LLMProviders/chainManager";
 import { clearRecordedPromptPayload } from "@/LLMProviders/chainRunner/utils/promptPayloadRecorder";
 import { logFileManager } from "@/logFileManager";
 import CopilotPlugin from "@/main";
-import { useIsPlusUser } from "@/plusUtils";
 import { updateSetting, useSettingsValue } from "@/settings/model";
 import { ChatUIState } from "@/state/ChatUIState";
 import { FileParserManager } from "@/tools/FileParserManager";
 import { ChatMessage } from "@/types/message";
-import { err2String, isPlusChain } from "@/utils";
+import { err2String } from "@/utils";
 import { arrayBufferToBase64 } from "@/utils/base64";
 import { Notice, TFile } from "obsidian";
 import { ContextManageModal } from "@/components/modals/project/context-manage-modal";
@@ -159,7 +158,6 @@ const ChatInternal: React.FC<ChatProps & { chatInput: ReturnType<typeof useChatI
 
   const [previousMode, setPreviousMode] = useState<ChainType | null>(null);
   const [selectedChain, setSelectedChain] = useChainType();
-  const isPlusUser = useIsPlusUser();
 
   const appContext = useContext(AppContext);
   const app = plugin.app || appContext;
@@ -192,8 +190,7 @@ const ChatInternal: React.FC<ChatProps & { chatInput: ReturnType<typeof useChatI
     // Check for URL restrictions in non-Plus chains and show notice, but continue processing
     const hasUrlsInContext = urls && urls.length > 0;
 
-    if (hasUrlsInContext && !isPlusChain(currentChain)) {
-      // Show notice but continue processing the message without URL context
+    if (hasUrlsInContext) {
       new Notice(RESTRICTION_MESSAGES.URL_PROCESSING_RESTRICTED);
     }
 
@@ -238,7 +235,7 @@ const ChatInternal: React.FC<ChatProps & { chatInput: ReturnType<typeof useChatI
       // Create message context - filter out URLs for non-Plus chains
       const context = {
         notes,
-        urls: isPlusChain(currentChain) ? urls || [] : [],
+        urls: [],
         tags: contextTags || [],
         folders: contextFolders || [],
         selectedTextContexts,
@@ -824,9 +821,7 @@ const ChatInternal: React.FC<ChatProps & { chatInput: ReturnType<typeof useChatI
                     setPreviousMode(null);
                   } else {
                     // default back to chat or plus mode
-                    setSelectedChain(
-                      isPlusUser ? ChainType.COPILOT_PLUS_CHAIN : ChainType.LLM_CHAIN
-                    );
+                    setSelectedChain(ChainType.LLM_CHAIN);
                   }
                 }}
                 showChatUI={(v) => setShowChatUI(v)}

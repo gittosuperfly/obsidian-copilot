@@ -1,5 +1,4 @@
 import { logError, logInfo, logWarn } from "@/logger";
-import { checkIsPlusUser } from "@/plusUtils";
 import { getSettings } from "@/settings/model";
 import { ToolManager } from "@/tools/toolManager";
 import { err2String } from "@/utils";
@@ -46,18 +45,6 @@ export async function executeSequentialToolCall(
         result: `Error: Tool '${toolCall.name}' not found. Available tools: ${availableToolNames}. Make sure you have the tool enabled in the Agent settings.`,
         success: false,
       };
-    }
-
-    // Check if tool requires Plus subscription
-    if (tool.isPlusOnly) {
-      const isPlusUser = await checkIsPlusUser();
-      if (!isPlusUser) {
-        return {
-          toolName: toolCall.name,
-          result: `Error: ${getToolDisplayName(toolCall.name)} requires a Copilot Plus subscription`,
-          success: false,
-        };
-      }
     }
 
     // Prepare tool arguments
@@ -133,7 +120,6 @@ export function getToolDisplayName(toolName: string): string {
   }
 
   const displayNameMap: Record<string, string> = {
-    webSearch: "web search",
     getFileTree: "file tree",
     getCurrentTime: "current time",
     getTimeRangeMs: "time range",
@@ -141,7 +127,6 @@ export function getToolDisplayName(toolName: string): string {
     convertTimeBetweenTimezones: "timezone converter",
     startPomodoro: "pomodoro timer",
     pomodoroTool: "pomodoro timer",
-    youtubeTranscription: "YouTube transcription",
     indexVault: "vault indexing",
     indexTool: "index",
     writeToFile: "file editor",
@@ -157,13 +142,11 @@ export function getToolDisplayName(toolName: string): string {
 export function getToolEmoji(toolName: string): string {
   const emojiMap: Record<string, string> = {
     localSearch: "🔍",
-    webSearch: "🌐",
     getFileTree: "📁",
     getCurrentTime: "🕒",
     getTimeRangeMs: "📅",
     getTimeInfoByEpoch: "🕰️",
     convertTimeBetweenTimezones: "🌍",
-    youtubeTranscription: "📺",
     indexVault: "📚",
     indexTool: "📚",
     writeToFile: "✏️",

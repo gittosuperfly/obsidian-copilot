@@ -77,7 +77,7 @@ jest.mock("@/chainFactory", () => ({
   ChainType: {
     LLM_CHAIN: "llm_chain",
     VAULT_QA_CHAIN: "vault_qa",
-    COPILOT_PLUS_CHAIN: "copilot_plus",
+    ADVANCED_CHAIN: "copilot_plus",
     PROJECT_CHAIN: "project",
   },
   default: jest.fn().mockImplementation(() => ({
@@ -335,17 +335,6 @@ describe("Agent Prompt Integration Test - Direct Model Testing", () => {
             expect(args).toBeDefined();
           },
           mockedReturnValue: "File updated successfully",
-        },
-      ],
-    },
-    {
-      description: "should generate proper tool calls for youtube transcription",
-      prompt: `Summarize https://www.youtube.com/watch?v=ZvqnkRd1iyw&list=RDZvqnkRd1iyw&start_radio=1
-      `,
-      expectedCalls: [
-        {
-          toolName: "youtubeTranscription",
-          mockedReturnValue: "This is the transcript of the video",
         },
       ],
     },

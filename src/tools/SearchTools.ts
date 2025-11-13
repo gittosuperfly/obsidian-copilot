@@ -1,13 +1,10 @@
-import { getStandaloneQuestion } from "@/chainUtils";
 import { TEXT_WEIGHT } from "@/constants";
-import { BrevilabsClient } from "@/LLMProviders/brevilabsClient";
 import { logInfo } from "@/logger";
 import { getSettings } from "@/settings/model";
 import { z } from "zod";
 import { deduplicateSources } from "@/LLMProviders/chainRunner/utils/toolExecution";
 import { createTool, SimpleTool } from "./SimpleTool";
 import { RETURN_ALL_LIMIT } from "@/search/v3/SearchCore";
-import { getWebSearchCitationInstructions } from "@/LLMProviders/chainRunner/utils/citationUtils";
 
 // Define Zod schema for localSearch
 const localSearchSchema = z.object({
@@ -50,7 +47,6 @@ const lexicalSearchTool = createTool({
         : undefined,
       textWeight: TEXT_WEIGHT,
       returnAll,
-      useRerankerThreshold: 0.5,
       returnAllTags,
       tagTerms,
     };
@@ -144,7 +140,6 @@ const semanticSearchTool = createTool({
         : undefined,
       textWeight: TEXT_WEIGHT,
       returnAll: returnAll,
-      useRerankerThreshold: 0.5,
     });
 
     const documents = await retriever.getRelevantDocuments(query);
@@ -261,55 +256,5 @@ const indexTool = createTool({
   isBackground: true,
 });
 
-// Define Zod schema for webSearch
-const webSearchSchema = z.object({
-  query: z.string().min(1).describe("The search query"),
-  chatHistory: z
-    .array(
-      z.object({
-        role: z.enum(["user", "assistant"]),
-        content: z.string(),
-      })
-    )
-    .describe("Previous conversation turns"),
-});
-
-// Add new web search tool
-const webSearchTool = createTool({
-  name: "webSearch",
-  description: "Search the web for information",
-  schema: webSearchSchema,
-  isPlusOnly: true,
-  handler: async ({ query, chatHistory }) => {
-    try {
-      // Get standalone question considering chat history
-      const standaloneQuestion = await getStandaloneQuestion(query, chatHistory);
-
-      const response = await BrevilabsClient.getInstance().webSearch(standaloneQuestion);
-      const citations = response.response.citations || [];
-
-      // Return structured JSON response for consistency with other tools
-      // Format as an array of results like localSearch does
-      const webContent = response.response.choices[0].message.content;
-      const formattedResults = [
-        {
-          type: "web_search",
-          content: webContent,
-          citations: citations,
-          // Instruct the model to use footnote-style citations and definitions.
-          // Chat UI will render [^n] as [n] for readability and show a simple numbered Sources list.
-          // When inserted into a note, the original [^n] footnotes will remain valid Markdown footnotes.
-          instruction: getWebSearchCitationInstructions(),
-        },
-      ];
-
-      return JSON.stringify(formattedResults);
-    } catch (error) {
-      console.error(`Error processing web search query ${query}:`, error);
-      return "";
-    }
-  },
-});
-
-export { indexTool, lexicalSearchTool, localSearchTool, semanticSearchTool, webSearchTool };
+export { indexTool, lexicalSearchTool, localSearchTool, semanticSearchTool };
 export type { SimpleTool };

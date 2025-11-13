@@ -1,13 +1,14 @@
 import { App, FuzzySuggestModal, TFile } from "obsidian";
 import { isAllowedFileForChainContext } from "@/utils";
 import { ChainType } from "@/chainFactory";
+import { translate } from "@/i18n";
 
 export abstract class BaseNoteModal<T> extends FuzzySuggestModal<T> {
   protected activeNote: TFile | null;
   protected availableNotes: T[];
   protected chainType: ChainType;
 
-  constructor(app: App, chainType: ChainType = ChainType.COPILOT_PLUS_CHAIN) {
+  constructor(app: App, chainType: ChainType = ChainType.ADVANCED_CHAIN) {
     super(app);
     this.activeNote = app.workspace.getActiveFile();
     this.chainType = chainType;
@@ -49,12 +50,12 @@ export abstract class BaseNoteModal<T> extends FuzzySuggestModal<T> {
   protected formatNoteTitle(basename: string, isActive: boolean, extension?: string): string {
     let title = basename;
     if (isActive) {
-      title += " (current)";
+      title += ` ${translate("modal.projectFileSelect.current")}`;
     }
     if (extension === "pdf") {
-      title += " (PDF)";
+      title += ` ${translate("modal.projectFileSelect.pdf")}`;
     } else if (extension === "canvas") {
-      title += " (Canvas)";
+      title += ` ${translate("modal.projectFileSelect.canvas")}`;
     }
     return title;
   }

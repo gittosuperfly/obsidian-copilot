@@ -2,11 +2,6 @@ import { executeSequentialToolCall } from "./toolExecution";
 import { createTool } from "@/tools/SimpleTool";
 import { z } from "zod";
 
-// Mock dependencies
-jest.mock("@/plusUtils", () => ({
-  checkIsPlusUser: jest.fn(),
-}));
-
 jest.mock("@/logger", () => ({
   logError: jest.fn(),
   logInfo: jest.fn(),
@@ -19,11 +14,9 @@ jest.mock("@/tools/toolManager", () => ({
   },
 }));
 
-import { checkIsPlusUser } from "@/plusUtils";
 import { ToolManager } from "@/tools/toolManager";
 
 describe("toolExecution", () => {
-  const mockCheckIsPlusUser = checkIsPlusUser as jest.MockedFunction<typeof checkIsPlusUser>;
   const mockCallTool = ToolManager.callTool as jest.MockedFunction<typeof ToolManager.callTool>;
 
   beforeEach(() => {
@@ -51,50 +44,6 @@ describe("toolExecution", () => {
         result: "Tool executed successfully",
         success: true,
       });
-      expect(mockCheckIsPlusUser).not.toHaveBeenCalled();
-    });
-
-    it("should block plus-only tools for non-plus users", async () => {
-      const plusTool = createTool({
-        name: "plusTool",
-        description: "Plus-only tool",
-        schema: z.void(),
-        handler: async () => "Should not execute",
-        isPlusOnly: true,
-      });
-
-      mockCheckIsPlusUser.mockResolvedValueOnce(false);
-
-      const result = await executeSequentialToolCall({ name: "plusTool", args: {} }, [plusTool]);
-
-      expect(result).toEqual({
-        toolName: "plusTool",
-        result: "Error: plusTool requires a Copilot Plus subscription",
-        success: false,
-      });
-      expect(mockCallTool).not.toHaveBeenCalled();
-    });
-
-    it("should allow plus-only tools for plus users", async () => {
-      const plusTool = createTool({
-        name: "plusTool",
-        description: "Plus-only tool",
-        schema: z.void(),
-        handler: async () => "Plus tool executed",
-        isPlusOnly: true,
-      });
-
-      mockCheckIsPlusUser.mockResolvedValueOnce(true);
-      mockCallTool.mockResolvedValueOnce("Plus tool executed");
-
-      const result = await executeSequentialToolCall({ name: "plusTool", args: {} }, [plusTool]);
-
-      expect(result).toEqual({
-        toolName: "plusTool",
-        result: "Plus tool executed",
-        success: true,
-      });
-      expect(mockCheckIsPlusUser).toHaveBeenCalled();
       expect(mockCallTool).toHaveBeenCalled();
     });
 

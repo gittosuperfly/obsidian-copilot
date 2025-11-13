@@ -40,20 +40,20 @@ export const CATEGORY_OPTIONS: CategoryOption[] = [
 ];
 
 /**
- * Hook that provides available @ mention categories based on Copilot Plus status.
+ * Hook that provides available @ mention categories based on whether advanced tools are enabled.
  * Returns the array of available category options directly.
  *
- * @param isCopilotPlus - Whether Copilot Plus features are enabled
+ * @param advancedModeEnabled - Whether tool categories should be exposed
  * @returns Array of CategoryOption objects
  */
-export function useAtMentionCategories(isCopilotPlus: boolean = false): CategoryOption[] {
-  // Filter category options based on Copilot Plus status
+export function useAtMentionCategories(advancedModeEnabled: boolean = false): CategoryOption[] {
+  // Filter category options based on advanced-tool availability
   return useMemo(() => {
     return CATEGORY_OPTIONS.filter((cat) => {
       if (cat.category === "tools") {
-        return isCopilotPlus;
+        return advancedModeEnabled;
       }
       return true;
     });
-  }, [isCopilotPlus]);
+  }, [advancedModeEnabled]);
 }

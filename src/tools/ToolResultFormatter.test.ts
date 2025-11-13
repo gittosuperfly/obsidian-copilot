@@ -146,27 +146,6 @@ Just content, no path or modified date
     });
   });
 
-  describe("formatWebSearch", () => {
-    it("should handle new JSON array format", () => {
-      const result = [
-        {
-          type: "web_search",
-          content: "Web search content here",
-          citations: ["https://example.com", "https://example.org"],
-          instruction: "Use this information to answer the question",
-        },
-      ];
-
-      const formatted = ToolResultFormatter.format("webSearch", JSON.stringify(result));
-
-      expect(formatted).toContain("🌐 Web Search Results");
-      expect(formatted).toContain("Web search content here");
-      expect(formatted).toContain("[1] https://example.com");
-      expect(formatted).toContain("[2] https://example.org");
-      expect(formatted).toContain("Note: Use this information");
-    });
-  });
-
   describe("format", () => {
     it("should return raw result for unknown tool names", () => {
       const result = "Some unknown tool result";

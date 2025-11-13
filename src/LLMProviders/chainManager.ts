@@ -2,15 +2,16 @@ import {
   getChainType,
   getCurrentProject,
   getModelKey,
+  getModelKeyFromModel,
   SetChainOptions,
   setChainType,
 } from "@/aiParams";
 import ChainFactory, { ChainType, Document } from "@/chainFactory";
-import { BUILTIN_CHAT_MODELS, USER_SENDER } from "@/constants";
+import { USER_SENDER } from "@/constants";
 import {
   AutonomousAgentChainRunner,
   ChainRunner,
-  CopilotPlusChainRunner,
+  AdvancedChainRunner,
   LLMChainRunner,
   ProjectChainRunner,
   VaultQAChainRunner,
@@ -151,8 +152,13 @@ export default class ChainManager {
         if (!customModel) {
           // Reset default model if no model is found
           console.error("Resetting default model. No model configuration found for: ", newModelKey);
-          customModel = BUILTIN_CHAT_MODELS[0];
-          newModelKey = customModel.name + "|" + customModel.provider;
+          // Try to get the first available model, or throw if none
+          const firstModel = getSettings().activeModels.find((m) => m.enabled);
+          if (!firstModel) {
+            throw new Error("No enabled models found. Please configure a model in settings.");
+          }
+          customModel = firstModel;
+          newModelKey = getModelKeyFromModel(firstModel);
         }
 
         // Add validation for project mode
@@ -163,7 +169,7 @@ export default class ChainManager {
           );
           if (projectEnabledModel) {
             customModel = projectEnabledModel;
-            newModelKey = projectEnabledModel.name + "|" + projectEnabledModel.provider;
+            newModelKey = getModelKeyFromModel(projectEnabledModel);
             new Notice(
               `Model ${customModel.name} is not available in project mode. Switching to ${projectEnabledModel.name}.`
             );
@@ -244,7 +250,6 @@ export default class ChainManager {
               timeRange: undefined,
               textWeight: undefined,
               returnAll: false,
-              useRerankerThreshold: undefined,
             });
 
         // Create new conversational retrieval chain
@@ -266,7 +271,7 @@ export default class ChainManager {
         break;
       }
 
-      case ChainType.COPILOT_PLUS_CHAIN: {
+      case ChainType.ADVANCED_CHAIN: {
         // For initial load of the plugin
         await this.initializeQAChain(options);
         this.chain = ChainFactory.createNewLLMChain({
@@ -276,7 +281,7 @@ export default class ChainManager {
           abortController: options.abortController,
         }) as RunnableSequence;
 
-        setChainType(ChainType.COPILOT_PLUS_CHAIN);
+        setChainType(ChainType.ADVANCED_CHAIN);
         break;
       }
 
@@ -308,12 +313,12 @@ export default class ChainManager {
         return new LLMChainRunner(this);
       case ChainType.VAULT_QA_CHAIN:
         return new VaultQAChainRunner(this);
-      case ChainType.COPILOT_PLUS_CHAIN:
+      case ChainType.ADVANCED_CHAIN:
         // Use AutonomousAgentChainRunner if the setting is enabled
         if (settings.enableAutonomousAgent) {
           return new AutonomousAgentChainRunner(this);
         }
-        return new CopilotPlusChainRunner(this);
+        return new AdvancedChainRunner(this);
       case ChainType.PROJECT_CHAIN:
         return new ProjectChainRunner(this);
       default:

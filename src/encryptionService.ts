@@ -40,29 +40,19 @@ export async function encryptAllKeys(
     return settings;
   }
   const newSettings = { ...settings };
-  const keysToEncrypt = Object.keys(settings).filter(
-    (key) => key.toLowerCase().includes("apikey") || key === "plusLicenseKey"
-  );
+  const keysToEncrypt = Object.keys(settings).filter((key) => key.toLowerCase().includes("apikey"));
 
   for (const key of keysToEncrypt) {
     const apiKey = settings[key as keyof CopilotSettings] as string;
     (newSettings[key as keyof CopilotSettings] as any) = await getEncryptedKey(apiKey);
   }
 
-  if (Array.isArray(settings.activeModels)) {
-    newSettings.activeModels = await Promise.all(
-      settings.activeModels.map(async (model) => ({
-        ...model,
-        apiKey: await getEncryptedKey(model.apiKey || ""),
-      }))
-    );
-  }
-
-  if (Array.isArray(settings.activeEmbeddingModels)) {
-    newSettings.activeEmbeddingModels = await Promise.all(
-      settings.activeEmbeddingModels.map(async (model) => ({
-        ...model,
-        apiKey: await getEncryptedKey(model.apiKey || ""),
+  // Encrypt provider API keys
+  if (Array.isArray(settings.providers)) {
+    newSettings.providers = await Promise.all(
+      settings.providers.map(async (provider) => ({
+        ...provider,
+        apiKey: await getEncryptedKey(provider.apiKey || ""),
       }))
     );
   }

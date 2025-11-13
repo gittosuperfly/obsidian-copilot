@@ -4,13 +4,14 @@ import { CustomCommand } from "@/commands/type";
 import { sortSlashCommands } from "@/commands/customCommandUtils";
 import { CustomCommandChatModal } from "@/commands/CustomCommandChatModal";
 import { CustomCommandManager } from "@/commands/customCommandManager";
+import { translate } from "@/i18n";
 
 export class ApplyCustomCommandModal extends FuzzySuggestModal<CustomCommand> {
   private commands: CustomCommand[];
 
   constructor(app: App) {
     super(app);
-    this.setPlaceholder("Select a custom command to apply...");
+    this.setPlaceholder(translate("modal.customCommand.placeholder"));
 
     // Get all custom commands and sort them by the user's selected ordering method
     const allCommands = getCachedCustomCommands();
@@ -25,7 +26,7 @@ export class ApplyCustomCommandModal extends FuzzySuggestModal<CustomCommand> {
       this.setInstructions([
         {
           command: "",
-          purpose: "No custom commands found. Create some custom commands first in the settings.",
+          purpose: translate("modal.customCommand.noCommands"),
         },
       ]);
     }

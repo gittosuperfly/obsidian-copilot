@@ -8,7 +8,7 @@ jest.mock("@/logger", () => ({
 
 // Mock the AVAILABLE_TOOLS constant
 jest.mock("../constants/tools", () => ({
-  AVAILABLE_TOOLS: ["@vault", "@websearch", "@composer"],
+  AVAILABLE_TOOLS: ["@vault", "@composer", "@memory"],
 }));
 
 // Create mock global app object

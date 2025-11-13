@@ -10,12 +10,14 @@ import { SettingSlider } from "@/components/ui/setting-slider";
 import { Textarea } from "@/components/ui/textarea";
 import { DEFAULT_MODEL_SETTING } from "@/constants";
 import { getDecodedPatterns } from "@/search/searchUtils";
-import { getModelKeyFromModel, useSettingsValue } from "@/settings/model";
+import { getModelKeyFromModel } from "@/aiParams";
+import { useSettingsValue } from "@/settings/model";
 import { checkModelApiKey, err2String, randomUUID } from "@/utils";
 import { App, Modal, Notice } from "obsidian";
 import React, { useState } from "react";
 import { createRoot, Root } from "react-dom/client";
 import { HelpTooltip } from "@/components/ui/help-tooltip";
+import { useI18n, translate } from "@/i18n";
 
 interface AddProjectModalContentProps {
   initialProject?: ProjectConfig;
@@ -24,6 +26,7 @@ interface AddProjectModalContentProps {
 }
 
 function AddProjectModalContent({ initialProject, onSave, onCancel }: AddProjectModalContentProps) {
+  const { t } = useI18n();
   const settings = useSettingsValue();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [touched, setTouched] = useState({
@@ -47,8 +50,6 @@ function AddProjectModalContent({ initialProject, onSave, onCancel }: AddProject
       contextSource: {
         inclusions: "",
         exclusions: "",
-        webUrls: "",
-        youtubeUrls: "",
       },
       created: Date.now(),
       UsageTimestamps: Date.now(),
@@ -140,7 +141,7 @@ function AddProjectModalContent({ initialProject, onSave, onCancel }: AddProject
         ...prev,
         ...Object.fromEntries(missingFields.map((field) => [field, true])),
       }));
-      new Notice("Please fill in all required fields");
+      new Notice(translate("modal.project.validation.required"));
       return;
     }
 
@@ -161,15 +162,15 @@ function AddProjectModalContent({ initialProject, onSave, onCancel }: AddProject
   return (
     <div className="tw-flex tw-flex-col tw-gap-2 tw-p-4">
       <div className="tw-mb-2 tw-text-xl tw-font-bold tw-text-normal">
-        {initialProject ? "Edit Project" : "New Project"}
+        {initialProject ? t("modal.project.edit.title") : t("modal.project.new.title")}
       </div>
 
       <div className="tw-flex tw-flex-col tw-gap-2">
         <FormField
-          label="Project Name"
+          label={t("modal.project.name.label")}
           required
           error={touched.name && !formData.name}
-          errorMessage="Project name is required"
+          errorMessage={t("modal.project.name.error")}
         >
           <Input
             type="text"
@@ -181,8 +182,8 @@ function AddProjectModalContent({ initialProject, onSave, onCancel }: AddProject
         </FormField>
 
         <FormField
-          label="Description"
-          description="Briefly describe the purpose and goals of the project"
+          label={t("modal.project.description.label")}
+          description={t("modal.project.description.placeholder")}
         >
           <Input
             type="text"
@@ -193,8 +194,8 @@ function AddProjectModalContent({ initialProject, onSave, onCancel }: AddProject
         </FormField>
 
         <FormField
-          label="Project System Prompt"
-          description="Custom instructions for how the AI should behave in this project context"
+          label={t("modal.project.systemPrompt.label")}
+          description={t("modal.project.systemPrompt.placeholder")}
         >
           <Textarea
             value={formData.systemPrompt}
@@ -205,10 +206,10 @@ function AddProjectModalContent({ initialProject, onSave, onCancel }: AddProject
         </FormField>
 
         <FormField
-          label="Default Model"
+          label={t("modal.project.model.label")}
           required
           error={touched.projectModelKey && !formData.projectModelKey}
-          errorMessage="Default model is required"
+          errorMessage={t("modal.project.model.error")}
         >
           <ObsidianNativeSelect
             value={formData.projectModelKey}
@@ -227,7 +228,7 @@ function AddProjectModalContent({ initialProject, onSave, onCancel }: AddProject
               handleInputChange("projectModelKey", value);
             }}
             onBlur={() => setTouched((prev) => ({ ...prev, projectModelKey: true }))}
-            placeholder="Select a model"
+            placeholder={t("modal.project.model.placeholder")}
             options={settings.activeModels
               .filter((m) => m.enabled && m.projectEnabled)
               .map((model) => ({
@@ -238,9 +239,11 @@ function AddProjectModalContent({ initialProject, onSave, onCancel }: AddProject
         </FormField>
 
         <div className="tw-space-y-4">
-          <div className="tw-text-base tw-font-medium">Model Configuration</div>
+          <div className="tw-text-base tw-font-medium">
+            {t("modal.project.modelConfig.heading")}
+          </div>
           <div className="tw-grid tw-grid-cols-1 tw-gap-4">
-            <FormField label="Temperature">
+            <FormField label={t("modal.project.temperature.label")}>
               <SettingSlider
                 value={formData.modelConfigs?.temperature ?? DEFAULT_MODEL_SETTING.TEMPERATURE}
                 onChange={(value) => handleInputChange("modelConfigs.temperature", value)}
@@ -250,7 +253,7 @@ function AddProjectModalContent({ initialProject, onSave, onCancel }: AddProject
                 className="tw-w-full"
               />
             </FormField>
-            <FormField label="Token Limit">
+            <FormField label={t("modal.project.tokenLimit.label")}>
               <SettingSlider
                 value={formData.modelConfigs?.maxTokens ?? DEFAULT_MODEL_SETTING.MAX_TOKENS}
                 onChange={(value) => handleInputChange("modelConfigs.maxTokens", value)}
@@ -264,35 +267,36 @@ function AddProjectModalContent({ initialProject, onSave, onCancel }: AddProject
         </div>
 
         <div className="tw-space-y-4">
-          <div className="tw-text-base tw-font-medium">Context Sources</div>
+          <div className="tw-text-base tw-font-medium">
+            {t("modal.project.contextSources.heading")}
+          </div>
           <FormField
             label={
               <div className="tw-flex tw-items-center tw-gap-2">
-                <span>File Context</span>
+                <span>{t("modal.project.fileContext.label")}</span>
                 <HelpTooltip
                   buttonClassName="tw-size-4 tw-text-muted"
                   content={
                     <div className="tw-max-w-80">
-                      <strong>Supported File Types:</strong>
+                      <strong>{t("modal.project.fileTypes.heading")}</strong>
                       <br />
-                      <strong>• Documents:</strong> pdf, doc, docx, ppt, pptx, epub, txt, rtf and
-                      many more
+                      <strong>• {t("modal.project.fileTypes.documents")}</strong>{" "}
+                      {t("modal.project.fileTypes.documentsDesc")}
                       <br />
-                      <strong>• Images:</strong> jpg, png, svg, gif, bmp, webp, tiff
+                      <strong>• {t("modal.project.fileTypes.images")}</strong>{" "}
+                      {t("modal.project.fileTypes.imagesDesc")}
                       <br />
-                      <strong>• Spreadsheets:</strong> xlsx, xls, csv, numbers
+                      <strong>• {t("modal.project.fileTypes.spreadsheets")}</strong>{" "}
+                      {t("modal.project.fileTypes.spreadsheetsDesc")}
                       <br />
                       <br />
-                      Non-markdown files are converted to markdown in the background.
-                      <br />
-                      <strong>Rate limit:</strong> 50 files or 100MB per 3 hours, whichever is
-                      reached first.
+                      {t("modal.project.rateLimit")}
                     </div>
                   }
                 />
               </div>
             }
-            description="Define patterns to include specific files, folders or tags (specified in the note property) in the project context."
+            description={t("modal.project.fileContext.description")}
           >
             <div className="tw-flex tw-items-center tw-gap-2">
               <div className="tw-flex tw-flex-1 tw-flex-row">
@@ -306,73 +310,19 @@ function AddProjectModalContent({ initialProject, onSave, onCancel }: AddProject
                   handleEditProjectContext(formData);
                 }}
               >
-                Manage Context
+                {t("settings.qa.inclusions.button")}
               </Button>
             </div>
-          </FormField>
-
-          <FormField label="Web URLs">
-            <Textarea
-              value={formData.contextSource?.webUrls}
-              onChange={(e) => {
-                const urls = e.target.value.split("\n");
-
-                // Process each URL while preserving spaces and empty lines
-                const processedUrls = urls.map((url) => {
-                  if (!url.trim()) return url; // Preserve empty lines and whitespace-only lines
-                  try {
-                    new URL(url.trim());
-                    return url; // Keep original formatting including spaces
-                  } catch {
-                    return url; // Keep invalid URLs for user to fix
-                  }
-                });
-
-                handleInputChange("contextSource.webUrls", processedUrls.join("\n"));
-              }}
-              placeholder="Enter web URLs, one per line"
-              className="tw-min-h-20 tw-w-full"
-            />
-          </FormField>
-
-          <FormField label="YouTube URLs">
-            <Textarea
-              value={formData.contextSource?.youtubeUrls}
-              onChange={(e) => {
-                const urls = e.target.value.split("\n");
-
-                // Process each URL while preserving spaces and empty lines
-                const processedUrls = urls.map((url) => {
-                  if (!url.trim()) return url; // Preserve empty lines and whitespace-only lines
-                  try {
-                    const urlObj = new URL(url.trim());
-                    if (
-                      urlObj.hostname.includes("youtube.com") ||
-                      urlObj.hostname.includes("youtu.be")
-                    ) {
-                      return url; // Keep original formatting including spaces
-                    }
-                    return url; // Keep non-YouTube URLs for user to fix
-                  } catch {
-                    return url; // Keep invalid URLs for user to fix
-                  }
-                });
-
-                handleInputChange("contextSource.youtubeUrls", processedUrls.join("\n"));
-              }}
-              placeholder="Enter YouTube URLs, one per line"
-              className="tw-min-h-20 tw-w-full"
-            />
           </FormField>
         </div>
       </div>
 
       <div className="tw-mt-4 tw-flex tw-items-center tw-justify-end tw-gap-2">
         <Button variant="ghost" onClick={onCancel} disabled={isSubmitting}>
-          Cancel
+          {t("modal.project.button.cancel")}
         </Button>
         <Button onClick={handleSave} disabled={isSubmitting || !isFormValid()}>
-          {isSubmitting ? "Saving..." : "Save"}
+          {isSubmitting ? t("modal.project.button.saving") : t("modal.project.button.save")}
         </Button>
       </div>
     </div>

@@ -13,12 +13,10 @@ import { CustomCommandManager } from "@/commands/customCommandManager";
 import { removeQuickCommandBlocks } from "@/commands/customCommandUtils";
 import { getCachedCustomCommands } from "@/commands/state";
 import { ApplyCustomCommandModal } from "@/components/modals/ApplyCustomCommandModal";
-import { YoutubeTranscriptModal } from "@/components/modals/YoutubeTranscriptModal";
-import { checkIsPlusUser } from "@/plusUtils";
 // Debug modals removed with search v3
 import CopilotPlugin from "@/main";
 import { getAllQAMarkdownContent } from "@/search/searchUtils";
-import { CopilotSettings, getSettings, updateSetting } from "@/settings/model";
+import { CopilotSettings } from "@/settings/model";
 import { SelectedTextContext } from "@/types/message";
 import { ensureFolderExists, isSourceModeOn } from "@/utils";
 import { Editor, MarkdownView, Notice, TFile } from "obsidian";
@@ -315,18 +313,12 @@ export function registerCommands(
   // Add clear Copilot cache command
   addCommand(plugin, COMMAND_IDS.CLEAR_COPILOT_CACHE, async () => {
     try {
-      await plugin.fileParserManager.clearPDFCache();
-
       // Clear project context cache
       await ProjectContextCache.getInstance().clearAllCache();
 
       // Clear file content cache (get FileCache instance and clear it)
       const fileCache = FileCache.getInstance<string>();
       await fileCache.clear();
-
-      // Clear autocomplete cache
-      const { AutocompleteCache } = await import("@/cache/autocompleteCache");
-      AutocompleteCache.getInstance().clear();
 
       new Notice("All Copilot caches cleared successfully");
     } catch (error) {
@@ -355,14 +347,6 @@ export function registerCommands(
       logError("Error clearing Copilot log file:", error);
       new Notice("Failed to clear Copilot log file.");
     }
-  });
-
-  // Add toggle autocomplete command
-  addCommand(plugin, COMMAND_IDS.TOGGLE_AUTOCOMPLETE, () => {
-    const currentSettings = getSettings();
-    const newValue = !currentSettings.enableAutocomplete;
-    updateSetting("enableAutocomplete", newValue);
-    new Notice(`Copilot autocomplete ${newValue ? "enabled" : "disabled"}`);
   });
 
   // Add selection to chat context command (manual)
@@ -425,18 +409,6 @@ export function registerCommands(
   // Add command to apply a custom command
   addCommand(plugin, COMMAND_IDS.APPLY_CUSTOM_COMMAND, () => {
     const modal = new ApplyCustomCommandModal(plugin.app);
-    modal.open();
-  });
-
-  // Add command to download YouTube script (Copilot Plus only)
-  addCommand(plugin, COMMAND_IDS.DOWNLOAD_YOUTUBE_SCRIPT, async () => {
-    const isPlusUser = await checkIsPlusUser();
-    if (!isPlusUser) {
-      new Notice("Download YouTube Script (plus) is a Copilot Plus feature");
-      return;
-    }
-
-    const modal = new YoutubeTranscriptModal(plugin.app);
     modal.open();
   });
 }

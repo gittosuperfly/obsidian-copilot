@@ -43,7 +43,7 @@ Text after`;
 <think>First thought</think>
 Middle part
 <writeToFile><path>file.md</path><content>content</content></writeToFile>
-<!--TOOL_CALL_START:456:webSearch:Web Search:🌐::false-->Searching web<!--TOOL_CALL_END:456:Results-->
+<!--TOOL_CALL_START:456:localSearch:Local Search:🔍::false-->Searching vault<!--TOOL_CALL_END:456:Results-->
 End of message`;
     const expected = "Start of message\n\nMiddle part\n\nEnd of message";
     expect(cleanMessageForCopy(input)).toBe(expected);

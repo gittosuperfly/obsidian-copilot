@@ -8,7 +8,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ModelDisplay } from "@/components/ui/model-display";
-import { useSettingsValue, getModelKeyFromModel } from "@/settings/model";
+import { getModelKeyFromModel } from "@/aiParams";
+import { useSettingsValue } from "@/settings/model";
 import { checkModelApiKey, err2String } from "@/utils";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";

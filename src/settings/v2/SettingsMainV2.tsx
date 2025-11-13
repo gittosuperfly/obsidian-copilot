@@ -1,20 +1,20 @@
 import { ResetSettingsConfirmModal } from "@/components/modals/ResetSettingsConfirmModal";
 import { Button } from "@/components/ui/button";
-import { TabContent, TabItem, type TabItem as TabItemType } from "@/components/ui/setting-tabs";
+import { TabContent, TabItem } from "@/components/ui/setting-tabs";
 import { TabProvider, useTab } from "@/contexts/TabContext";
 import { useLatestVersion } from "@/hooks/useLatestVersion";
 import CopilotPlugin from "@/main";
 import { resetSettings } from "@/settings/model";
 import { CommandSettings } from "@/settings/v2/components/CommandSettings";
-import { Cog, Command, Cpu, Database, Sparkles, Wrench } from "lucide-react";
-import React from "react";
+import { Cog, Command, Cpu, Database, Wrench } from "lucide-react";
+import React, { useMemo } from "react";
 import { AdvancedSettings } from "./components/AdvancedSettings";
 import { BasicSettings } from "./components/BasicSettings";
-import { CopilotPlusSettings } from "./components/CopilotPlusSettings";
 import { ModelSettings } from "./components/ModelSettings";
 import { QASettings } from "./components/QASettings";
+import { useI18n, TranslationKey } from "@/i18n";
 
-const TAB_IDS = ["basic", "model", "QA", "command", "plus", "advanced"] as const;
+const TAB_IDS = ["basic", "model", "QA", "command", "advanced"] as const;
 type TabId = (typeof TAB_IDS)[number];
 
 // tab icons
@@ -23,7 +23,6 @@ const icons: Record<TabId, JSX.Element> = {
   model: <Cpu className="tw-size-5" />,
   QA: <Database className="tw-size-5" />,
   command: <Command className="tw-size-5" />,
-  plus: <Sparkles className="tw-size-5" />,
   advanced: <Wrench className="tw-size-5" />,
 };
 
@@ -33,19 +32,29 @@ const components: Record<TabId, React.FC> = {
   model: () => <ModelSettings />,
   QA: () => <QASettings />,
   command: () => <CommandSettings />,
-  plus: () => <CopilotPlusSettings />,
   advanced: () => <AdvancedSettings />,
 };
 
-// tabs
-const tabs: TabItemType[] = TAB_IDS.map((id) => ({
-  id,
-  icon: icons[id],
-  label: id.charAt(0).toUpperCase() + id.slice(1),
-}));
+const TAB_LABEL_KEYS: Record<TabId, TranslationKey> = {
+  basic: "settings.tabs.basic",
+  model: "settings.tabs.model",
+  QA: "settings.tabs.qa",
+  command: "settings.tabs.command",
+  advanced: "settings.tabs.advanced",
+};
 
 const SettingsContent: React.FC = () => {
   const { selectedTab, setSelectedTab } = useTab();
+  const { t } = useI18n();
+  const tabs = useMemo(
+    () =>
+      TAB_IDS.map((id) => ({
+        id,
+        icon: icons[id],
+        label: t(TAB_LABEL_KEYS[id]),
+      })),
+    [t]
+  );
 
   return (
     <div className="tw-flex tw-flex-col">
@@ -85,6 +94,7 @@ const SettingsMainV2: React.FC<SettingsMainV2Props> = ({ plugin }) => {
   // Add a key state that we'll change when resetting
   const [resetKey, setResetKey] = React.useState(0);
   const { latestVersion, hasUpdate } = useLatestVersion(plugin.manifest.version);
+  const { t } = useI18n();
 
   const handleReset = async () => {
     const modal = new ResetSettingsConfirmModal(app, async () => {
@@ -101,7 +111,7 @@ const SettingsMainV2: React.FC<SettingsMainV2Props> = ({ plugin }) => {
         <div className="tw-flex tw-flex-col tw-gap-2">
           <h1 className="tw-flex tw-flex-col tw-gap-2 sm:tw-flex-row sm:tw-items-center sm:tw-justify-between">
             <div className="tw-flex tw-items-center tw-gap-2">
-              <span>Copilot Settings</span>
+              <span>{t("settings.header.title")}</span>
               <div className="tw-flex tw-items-center tw-gap-1">
                 <span className="tw-text-xs tw-text-muted">v{plugin.manifest.version}</span>
                 {latestVersion && (
@@ -113,10 +123,12 @@ const SettingsMainV2: React.FC<SettingsMainV2Props> = ({ plugin }) => {
                         rel="noopener noreferrer"
                         className="tw-text-xs tw-text-accent hover:tw-underline"
                       >
-                        (Update to v{latestVersion})
+                        {t("settings.header.updateAvailable", { version: latestVersion })}
                       </a>
                     ) : (
-                      <span className="tw-text-xs tw-text-normal"> (up to date)</span>
+                      <span className="tw-text-xs tw-text-normal">
+                        {t("settings.header.upToDate")}
+                      </span>
                     )}
                   </>
                 )}
@@ -124,7 +136,7 @@ const SettingsMainV2: React.FC<SettingsMainV2Props> = ({ plugin }) => {
             </div>
             <div className="tw-self-end sm:tw-self-auto">
               <Button variant="secondary" size="sm" onClick={handleReset}>
-                Reset Settings
+                {t("settings.header.reset")}
               </Button>
             </div>
           </h1>

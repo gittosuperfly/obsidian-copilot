@@ -1,0 +1,672 @@
+import { CustomModel } from "@/aiParams";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { FormField } from "@/components/ui/form-field";
+import { HelpTooltip } from "@/components/ui/help-tooltip";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { PasswordInput } from "@/components/ui/password-input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  ChatModelProviders,
+  EmbeddingModelProviders,
+  MODEL_CAPABILITIES,
+  ModelCapability,
+  Provider,
+  ProviderMetadata,
+  ProviderSettingsKeyMap,
+  SettingKeyProviders,
+} from "@/constants";
+import { useTab } from "@/contexts/TabContext";
+import { logError } from "@/logger";
+import { getSettings } from "@/settings/model";
+import { err2String, getProviderInfo, getProviderLabel } from "@/utils";
+import { ChevronDown, Loader2 } from "lucide-react";
+import { Notice } from "obsidian";
+import React, { useState } from "react";
+import { useI18n } from "@/i18n";
+
+interface FormErrors {
+  name: boolean;
+  instanceName: boolean;
+  deploymentName: boolean;
+  embeddingDeploymentName: boolean;
+  apiVersion: boolean;
+  displayName: boolean;
+  bedrockRegion: boolean;
+}
+
+interface ModelAddDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onAdd: (model: CustomModel) => void;
+  ping: (model: CustomModel) => Promise<boolean>;
+  isEmbeddingModel?: boolean;
+}
+
+export const ModelAddDialog: React.FC<ModelAddDialogProps> = ({
+  open,
+  onOpenChange,
+  onAdd,
+  ping,
+  isEmbeddingModel = false,
+}) => {
+  const { modalContainer } = useTab();
+  const settings = getSettings();
+  const { t } = useI18n();
+  const defaultProvider = isEmbeddingModel
+    ? EmbeddingModelProviders.OPENAI
+    : ChatModelProviders.OPENROUTERAI;
+
+  const [dialogElement, setDialogElement] = useState<HTMLDivElement | null>(null);
+  const [isOpen, setIsOpen] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [errors, setErrors] = useState<FormErrors>({
+    name: false,
+    instanceName: false,
+    deploymentName: false,
+    embeddingDeploymentName: false,
+    apiVersion: false,
+    displayName: false,
+    bedrockRegion: false,
+  });
+
+  const setError = (field: keyof FormErrors, value: boolean) => {
+    setErrors((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const clearErrors = () => {
+    setErrors({
+      name: false,
+      instanceName: false,
+      deploymentName: false,
+      embeddingDeploymentName: false,
+      apiVersion: false,
+      displayName: false,
+      bedrockRegion: false,
+    });
+  };
+
+  const validateFields = (): boolean => {
+    let isValid = true;
+    const newErrors = { ...errors };
+
+    // Validate name
+    newErrors.name = !model.name;
+    if (!model.name) isValid = false;
+
+    // Validate Azure OpenAI specific fields
+    if (model.provider === ChatModelProviders.AZURE_OPENAI) {
+      newErrors.instanceName = !model.azureOpenAIApiInstanceName;
+      newErrors.apiVersion = !model.azureOpenAIApiVersion;
+
+      if (isEmbeddingModel) {
+        newErrors.embeddingDeploymentName = !model.azureOpenAIApiEmbeddingDeploymentName;
+        if (!model.azureOpenAIApiEmbeddingDeploymentName) isValid = false;
+      } else {
+        newErrors.deploymentName = !model.azureOpenAIApiDeploymentName;
+        if (!model.azureOpenAIApiDeploymentName) isValid = false;
+      }
+
+      if (!model.azureOpenAIApiInstanceName || !model.azureOpenAIApiVersion) {
+        isValid = false;
+      }
+    }
+
+    if (model.provider === ChatModelProviders.AMAZON_BEDROCK) {
+      newErrors.bedrockRegion = false;
+    } else {
+      newErrors.bedrockRegion = false;
+    }
+
+    setErrors(newErrors);
+    return isValid;
+  };
+
+  const getDefaultApiKey = (provider: Provider): string => {
+    return (settings[ProviderSettingsKeyMap[provider as SettingKeyProviders]] as string) || "";
+  };
+
+  const getInitialModel = (provider = defaultProvider): CustomModel => {
+    const baseModel = {
+      name: "",
+      provider,
+      enabled: true,
+      isBuiltIn: false,
+      baseUrl: "",
+      apiKey: getDefaultApiKey(provider),
+      isEmbeddingModel,
+      capabilities: [],
+    };
+
+    if (!isEmbeddingModel) {
+      const chatModel = {
+        ...baseModel,
+        stream: true,
+      };
+
+      if (provider === ChatModelProviders.AMAZON_BEDROCK) {
+        return {
+          ...chatModel,
+          bedrockRegion: settings.amazonBedrockRegion,
+        };
+      }
+
+      return chatModel;
+    }
+
+    return baseModel;
+  };
+
+  const [model, setModel] = useState<CustomModel>(getInitialModel());
+
+  // Clean up model data by trimming whitespace
+  const getCleanedModel = (modelData: CustomModel): CustomModel => {
+    return {
+      ...modelData,
+      name: modelData.name?.trim(),
+      baseUrl: modelData.baseUrl?.trim(),
+      apiKey: modelData.apiKey?.trim(),
+      openAIOrgId: modelData.openAIOrgId?.trim(),
+      azureOpenAIApiInstanceName: modelData.azureOpenAIApiInstanceName?.trim(),
+      azureOpenAIApiDeploymentName: modelData.azureOpenAIApiDeploymentName?.trim(),
+      azureOpenAIApiEmbeddingDeploymentName:
+        modelData.azureOpenAIApiEmbeddingDeploymentName?.trim(),
+      azureOpenAIApiVersion: modelData.azureOpenAIApiVersion?.trim(),
+      bedrockRegion: modelData.bedrockRegion?.trim(),
+    };
+  };
+
+  const [providerInfo, setProviderInfo] = useState<ProviderMetadata>(
+    getProviderInfo(defaultProvider)
+  );
+
+  // Check if the form has required fields filled
+  const isFormValid = (): boolean => {
+    return Boolean(model.name && model.provider);
+  };
+
+  const getModelNameExample = () => {
+    if (model.provider === ChatModelProviders.AMAZON_BEDROCK && !isEmbeddingModel) {
+      return "global.anthropic.claude-sonnet-4-5-20250929-v1:0";
+    }
+    return isEmbeddingModel ? "text-embedding-3-small" : "gpt-4";
+  };
+
+  // Check if buttons should be disabled
+  const isButtonDisabled = (): boolean => {
+    return isVerifying || !isFormValid();
+  };
+
+  const handleAdd = () => {
+    if (!validateFields()) {
+      new Notice(t("settings.models.add.notice.required"));
+      return;
+    }
+
+    const cleanedModel = getCleanedModel(model);
+    onAdd(cleanedModel);
+    onOpenChange(false);
+    setModel(getInitialModel());
+    clearErrors();
+  };
+
+  const handleProviderChange = (provider: ChatModelProviders) => {
+    setProviderInfo(getProviderInfo(provider));
+    setModel({
+      ...model,
+      provider,
+      apiKey: getDefaultApiKey(provider),
+      ...(provider === ChatModelProviders.OPENAI ? { openAIOrgId: settings.openAIOrgId } : {}),
+      ...(provider === ChatModelProviders.AZURE_OPENAI
+        ? {
+            azureOpenAIApiInstanceName: settings.azureOpenAIApiInstanceName,
+            azureOpenAIApiDeploymentName: settings.azureOpenAIApiDeploymentName,
+            azureOpenAIApiVersion: settings.azureOpenAIApiVersion,
+            azureOpenAIApiEmbeddingDeploymentName: settings.azureOpenAIApiEmbeddingDeploymentName,
+          }
+        : {}),
+      ...(provider === ChatModelProviders.AMAZON_BEDROCK
+        ? {
+            bedrockRegion: settings.amazonBedrockRegion,
+          }
+        : {
+            bedrockRegion: undefined,
+          }),
+    });
+  };
+  const handleOpenChange = (open: boolean) => {
+    if (!open) {
+      setModel(getInitialModel());
+      clearErrors();
+      setIsOpen(false);
+    }
+    onOpenChange(open);
+  };
+
+  const handleVerify = async () => {
+    if (!validateFields()) {
+      new Notice(t("settings.models.add.notice.required"));
+      return;
+    }
+
+    setIsVerifying(true);
+    try {
+      const cleanedModel = getCleanedModel(model);
+      await ping(cleanedModel);
+      new Notice(t("settings.models.add.notice.verifySuccess"));
+    } catch (err) {
+      logError(err);
+      const errStr = err2String(err);
+      new Notice(t("settings.models.add.notice.verifyFailed", { error: errStr }));
+    } finally {
+      setIsVerifying(false);
+    }
+  };
+
+  const renderProviderSpecificFields = () => {
+    const fields = () => {
+      switch (model.provider) {
+        case ChatModelProviders.OPENAI:
+          return (
+            <FormField
+              label={t("settings.models.add.fields.openaiOrgId.label")}
+              description={t("settings.models.add.fields.openaiOrgId.description")}
+            >
+              <Input
+                type="text"
+                placeholder={t("settings.models.add.fields.openaiOrgId.placeholder")}
+                value={model.openAIOrgId || ""}
+                onChange={(e) => setModel({ ...model, openAIOrgId: e.target.value })}
+              />
+            </FormField>
+          );
+        case ChatModelProviders.AZURE_OPENAI:
+          return (
+            <>
+              <FormField
+                label={t("settings.models.add.fields.azure.instance.label")}
+                required
+                error={errors.instanceName}
+                errorMessage={t("settings.models.add.fields.azure.instance.error")}
+              >
+                <Input
+                  type="text"
+                  placeholder={t("settings.models.add.fields.azure.instance.placeholder")}
+                  value={model.azureOpenAIApiInstanceName || ""}
+                  onChange={(e) => {
+                    setModel({ ...model, azureOpenAIApiInstanceName: e.target.value });
+                    setError("instanceName", false);
+                  }}
+                />
+              </FormField>
+
+              {!isEmbeddingModel ? (
+                <FormField
+                  label={t("settings.models.add.fields.azure.deployment.label")}
+                  required
+                  error={errors.deploymentName}
+                  errorMessage={t("settings.models.add.fields.azure.deployment.error")}
+                  description={t("settings.models.add.fields.azure.deployment.description")}
+                >
+                  <Input
+                    type="text"
+                    placeholder={t("settings.models.add.fields.azure.deployment.placeholder")}
+                    value={model.azureOpenAIApiDeploymentName || ""}
+                    onChange={(e) => {
+                      setModel({ ...model, azureOpenAIApiDeploymentName: e.target.value });
+                      setError("deploymentName", false);
+                    }}
+                  />
+                </FormField>
+              ) : (
+                <FormField
+                  label={t("settings.models.add.fields.azure.embedding.label")}
+                  required
+                  error={errors.embeddingDeploymentName}
+                  errorMessage={t("settings.models.add.fields.azure.embedding.error")}
+                >
+                  <Input
+                    type="text"
+                    placeholder={t("settings.models.add.fields.azure.embedding.placeholder")}
+                    value={model.azureOpenAIApiEmbeddingDeploymentName || ""}
+                    onChange={(e) => {
+                      setModel({ ...model, azureOpenAIApiEmbeddingDeploymentName: e.target.value });
+                      setError("embeddingDeploymentName", false);
+                    }}
+                  />
+                </FormField>
+              )}
+
+              <FormField
+                label={t("settings.models.add.fields.azure.apiVersion.label")}
+                required
+                error={errors.apiVersion}
+                errorMessage={t("settings.models.add.fields.azure.apiVersion.error")}
+              >
+                <Input
+                  type="text"
+                  placeholder={t("settings.models.add.fields.azure.apiVersion.placeholder")}
+                  value={model.azureOpenAIApiVersion || ""}
+                  onChange={(e) => {
+                    setModel({ ...model, azureOpenAIApiVersion: e.target.value });
+                    setError("apiVersion", false);
+                  }}
+                />
+              </FormField>
+            </>
+          );
+        case ChatModelProviders.AMAZON_BEDROCK:
+          return (
+            <FormField
+              label={t("settings.models.add.fields.bedrock.region.label")}
+              description={t("settings.models.add.fields.bedrock.region.description")}
+            >
+              <Input
+                type="text"
+                placeholder={t("settings.models.add.fields.bedrock.region.placeholder")}
+                value={model.bedrockRegion || ""}
+                onChange={(e) => {
+                  setModel({ ...model, bedrockRegion: e.target.value });
+                  setError("bedrockRegion", false);
+                }}
+              />
+            </FormField>
+          );
+        default:
+          return null;
+      }
+    };
+
+    const content = fields();
+    if (!content) return null;
+
+  return (
+    <Collapsible
+      open={isOpen}
+      onOpenChange={setIsOpen}
+      className="tw-space-y-2 tw-rounded-lg tw-border tw-pt-4"
+    >
+      <div className="tw-flex tw-items-center tw-justify-between">
+        <Label>
+          {t("settings.models.add.collapse.title", { provider: getProviderLabel(model.provider) })}
+        </Label>
+        <CollapsibleTrigger asChild>
+          <Button variant="ghost" size="sm" className="tw-w-9 tw-p-0">
+            <ChevronDown className="tw-size-4" />
+            <span className="tw-sr-only">{t("settings.models.add.collapse.toggle")}</span>
+          </Button>
+        </CollapsibleTrigger>
+      </div>
+        <CollapsibleContent className="tw-max-h-[200px] tw-space-y-4 tw-overflow-y-auto tw-pb-0.5 tw-pl-0.5 tw-pr-2">
+          {content}
+        </CollapsibleContent>
+      </Collapsible>
+    );
+  };
+
+  const getPlaceholderUrl = () => {
+    if (model.provider !== ChatModelProviders.AZURE_OPENAI) {
+      return providerInfo.host;
+    }
+
+    const instanceName = model.azureOpenAIApiInstanceName || "[instance]";
+    const deploymentName = isEmbeddingModel
+      ? model.azureOpenAIApiEmbeddingDeploymentName || "[deployment]"
+      : model.azureOpenAIApiDeploymentName || "[deployment]";
+    const apiVersion = model.azureOpenAIApiVersion || "[api-version]";
+    const endpoint = isEmbeddingModel ? "embeddings" : "chat/completions";
+
+    return `https://${instanceName}.openai.azure.com/openai/deployments/${deploymentName}/${endpoint}?api-version=${apiVersion}`;
+  };
+
+  const capabilityOptions = Object.entries(MODEL_CAPABILITIES).map(
+    ([id, { labelKey, descriptionKey }]) => ({
+      id: id as ModelCapability,
+      labelKey,
+      descriptionKey,
+    })
+  );
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent
+        className="sm:tw-max-w-[425px]"
+        container={modalContainer}
+        ref={(el) => setDialogElement(el)}
+      >
+        <DialogHeader>
+          <DialogTitle>
+            {isEmbeddingModel
+              ? t("settings.models.add.dialogTitle.embedding")
+              : t("settings.models.add.dialogTitle.chat")}
+          </DialogTitle>
+          <DialogDescription>{t("settings.models.add.dialogDescription")}</DialogDescription>
+        </DialogHeader>
+
+        <div className="tw-space-y-3">
+          <FormField
+            label={t("settings.models.add.fields.modelName.label")}
+            required
+            error={errors.name}
+            errorMessage={t("settings.models.add.fields.modelName.error")}
+            description={
+              model.provider === ChatModelProviders.AMAZON_BEDROCK && !isEmbeddingModel
+                ? t("settings.models.add.fields.modelName.description.bedrock")
+                : undefined
+            }
+          >
+            <Input
+              type="text"
+              placeholder={t("settings.models.add.fields.modelName.placeholder", {
+                example: getModelNameExample(),
+              })}
+              value={model.name}
+              onChange={(e) => {
+                setModel({ ...model, name: e.target.value });
+                setError("name", false);
+              }}
+            />
+          </FormField>
+
+          <FormField
+            label={
+              <div className="tw-flex tw-items-center tw-gap-1.5">
+                <span className="tw-leading-none">
+                  {t("settings.models.add.fields.displayName.label")}
+                </span>
+                <HelpTooltip
+                  content={
+                    <div className="tw-flex tw-flex-col tw-gap-0.5 tw-text-sm tw-text-muted">
+                      <div className="tw-text-[12px] tw-font-bold">
+                        {t("settings.models.add.fields.displayName.tooltip.title")}
+                      </div>
+                      <div className="tw-text-accent">
+                        {t("settings.models.add.fields.displayName.tooltip.format")}
+                      </div>
+                      <div className="tw-text-[12px]">
+                        {t("settings.models.add.fields.displayName.tooltip.examplesTitle")}
+                        <li>{t("settings.models.add.fields.displayName.tooltip.example1")}</li>
+                        <li>{t("settings.models.add.fields.displayName.tooltip.example2")}</li>
+                        <li>{t("settings.models.add.fields.displayName.tooltip.example3")}</li>
+                      </div>
+                    </div>
+                  }
+                  contentClassName="tw-max-w-96"
+                />
+              </div>
+            }
+          >
+            <Input
+              type="text"
+              placeholder={t("settings.models.add.fields.displayName.placeholder")}
+              value={model.displayName || ""}
+              onChange={(e) => {
+                setModel({ ...model, displayName: e.target.value });
+              }}
+            />
+          </FormField>
+
+          <FormField label={t("settings.models.add.fields.provider.label")}>
+            <Select value={model.provider} onValueChange={handleProviderChange}>
+              <SelectTrigger>
+                <SelectValue placeholder={t("settings.models.add.fields.provider.placeholder")} />
+              </SelectTrigger>
+              <SelectContent container={dialogElement}>
+                {Object.values(isEmbeddingModel ? EmbeddingModelProviders : ChatModelProviders).map(
+                  (provider) => (
+                    <SelectItem key={provider} value={provider}>
+                      {getProviderLabel(provider)}
+                    </SelectItem>
+                  )
+                )}
+              </SelectContent>
+            </Select>
+          </FormField>
+
+          <FormField
+            label={t("settings.models.add.fields.baseUrl.label")}
+            description={t("settings.models.add.fields.baseUrl.description")}
+          >
+            <Input
+              type="text"
+              placeholder={
+                getPlaceholderUrl() || t("settings.models.add.fields.baseUrl.placeholder")
+              }
+              value={model.baseUrl || ""}
+              onChange={(e) => setModel({ ...model, baseUrl: e.target.value })}
+            />
+          </FormField>
+
+          <FormField label={t("settings.models.add.fields.apiKey.label")}>
+            <PasswordInput
+              placeholder={t("settings.models.add.fields.apiKey.placeholder", {
+                provider: providerInfo.label,
+              })}
+              value={model.apiKey || ""}
+              onChange={(value) => setModel({ ...model, apiKey: value })}
+            />
+            {providerInfo.keyManagementURL && (
+              <p className="tw-text-xs tw-text-muted">
+                <a href={providerInfo.keyManagementURL} target="_blank" rel="noopener noreferrer">
+                  {t("settings.models.add.fields.apiKey.getLink", {
+                    provider: providerInfo.label,
+                  })}
+                </a>
+              </p>
+            )}
+          </FormField>
+
+          <FormField
+            label={
+              <div className="tw-flex tw-items-center tw-gap-1.5">
+                <span className="tw-leading-none">
+                  {t("settings.models.add.fields.capabilities.label")}
+                </span>
+                <HelpTooltip
+                  content={
+                    <div className="tw-text-sm tw-text-muted">
+                      {t("settings.models.add.fields.capabilities.tooltip")}
+                    </div>
+                  }
+                  contentClassName="tw-max-w-96"
+                />
+              </div>
+            }
+          >
+            <div className="tw-flex tw-items-center tw-gap-4">
+              {capabilityOptions.map(({ id, labelKey, descriptionKey }) => (
+                <div key={id} className="tw-flex tw-items-center tw-gap-2">
+                  <Checkbox
+                    id={id}
+                    checked={model.capabilities?.includes(id)}
+                    onCheckedChange={(checked) => {
+                      const newCapabilities = model.capabilities || [];
+                      setModel({
+                        ...model,
+                        capabilities: checked
+                          ? [...newCapabilities, id]
+                          : newCapabilities.filter((cap) => cap !== id),
+                      });
+                    }}
+                  />
+                  <HelpTooltip content={t(descriptionKey)}>
+                    <Label htmlFor={id} className="tw-text-sm">
+                      {t(labelKey)}
+                    </Label>
+                  </HelpTooltip>
+                </div>
+              ))}
+            </div>
+          </FormField>
+
+          {renderProviderSpecificFields()}
+        </div>
+
+        <div className="tw-flex tw-items-center  tw-justify-between tw-gap-4">
+          <div className="tw-flex tw-items-center tw-gap-2">
+            <Checkbox
+              id="enable-cors"
+              checked={model.enableCors || false}
+              onCheckedChange={(checked: boolean) => setModel({ ...model, enableCors: checked })}
+            />
+            <Label htmlFor="enable-cors">
+              <div className="tw-flex tw-items-center tw-gap-0.5">
+                <span className="tw-text-xs md:tw-text-sm">
+                  {t("settings.models.add.fields.cors.label")}
+                </span>
+                <HelpTooltip
+                  content={
+                    <div className="tw-text-sm tw-text-muted">
+                      {t("settings.models.add.fields.cors.tooltip")}
+                    </div>
+                  }
+                  contentClassName="tw-max-w-96"
+                />
+              </div>
+            </Label>
+          </div>
+          <TooltipProvider>
+            <div className="tw-flex tw-gap-2 tw-text-xs md:tw-text-sm">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" onClick={handleVerify} disabled={isButtonDisabled()}>
+                    {isVerifying ? (
+                      <>
+                        <Loader2 className="tw-mr-2 tw-size-2 tw-animate-spin md:tw-size-4 " />
+                        {t("settings.models.add.actions.test")}
+                      </>
+                    ) : (
+                      t("settings.models.add.actions.test")
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{t("settings.models.add.actions.testTooltip")}</p>
+                </TooltipContent>
+              </Tooltip>
+              <Button variant="default" onClick={handleAdd} disabled={isButtonDisabled()}>
+                {t("settings.models.add.actions.add")}
+              </Button>
+            </div>
+          </TooltipProvider>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+};

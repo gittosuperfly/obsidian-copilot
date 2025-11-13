@@ -20,6 +20,8 @@ global.TextDecoder = TextDecoder as any;
 
 // Now we can import our modules
 import { encryptAllKeys, getDecryptedKey, getEncryptedKey } from "@/encryptionService";
+import { ModelProvider } from "@/aiParams";
+import { ChatModelProviders } from "@/constants";
 import { type CopilotSettings } from "@/settings/model";
 import { Platform } from "obsidian";
 import { Buffer } from "buffer";
@@ -104,34 +106,74 @@ describe("EncryptionService", () => {
 
   describe("encryptAllKeys", () => {
     it("should encrypt all keys containing 'apikey'", async () => {
+      const providers: ModelProvider[] = [
+        {
+          id: "provider-1",
+          name: "Provider A",
+          type: ChatModelProviders.OPENAI,
+          baseUrl: "https://api.openai.com/v1",
+          apiKey: "testApiKey",
+          enabled: true,
+        },
+        {
+          id: "provider-2",
+          name: "Provider B",
+          type: ChatModelProviders.COHEREAI,
+          baseUrl: "https://api.cohere.ai/v1",
+          apiKey: "anotherTestApiKey",
+          enabled: true,
+        },
+      ];
+
       const settings = {
         enableEncryption: true,
-        openAIApiKey: "testApiKey",
-        cohereApiKey: "anotherTestApiKey",
+        providers,
         userSystemPrompt: "shouldBeIgnored",
       } as unknown as CopilotSettings;
 
       const newSettings = await encryptAllKeys(settings);
-      expect(newSettings.openAIApiKey).toMatch(/^enc_(desk|web)_[A-Za-z0-9+/=]+$/);
-      expect(newSettings.cohereApiKey).toMatch(/^enc_(desk|web)_[A-Za-z0-9+/=]+$/);
+      expect(newSettings.providers[0].apiKey).toMatch(/^enc_(desk|web)_[A-Za-z0-9+/=]+$/);
+      expect(newSettings.providers[1].apiKey).toMatch(/^enc_(desk|web)_[A-Za-z0-9+/=]+$/);
       expect(newSettings.userSystemPrompt).toBe("shouldBeIgnored");
 
       // Verify we can decrypt the keys back
-      const decryptedOpenAI = await getDecryptedKey(newSettings.openAIApiKey);
-      const decryptedCohere = await getDecryptedKey(newSettings.cohereApiKey);
+      const decryptedOpenAI = await getDecryptedKey(newSettings.providers[0].apiKey);
+      const decryptedCohere = await getDecryptedKey(newSettings.providers[1].apiKey);
       expect(decryptedOpenAI).toBe("testApiKey");
       expect(decryptedCohere).toBe("anotherTestApiKey");
+
+      // Ensure original settings left untouched
+      expect(providers[0].apiKey).toBe("testApiKey");
+      expect(providers[1].apiKey).toBe("anotherTestApiKey");
     });
 
     it("should not encrypt keys when encryption is not enabled", async () => {
+      const providers: ModelProvider[] = [
+        {
+          id: "provider-1",
+          name: "Provider A",
+          type: ChatModelProviders.OPENAI,
+          baseUrl: "https://api.openai.com/v1",
+          apiKey: "testApiKey",
+          enabled: true,
+        },
+        {
+          id: "provider-2",
+          name: "Provider B",
+          type: ChatModelProviders.COHEREAI,
+          baseUrl: "https://api.cohere.ai/v1",
+          apiKey: "anotherTestApiKey",
+          enabled: true,
+        },
+      ];
+
       const newSettings = await encryptAllKeys({
         enableEncryption: false,
-        openAIApiKey: "testApiKey",
-        cohereApiKey: "anotherTestApiKey",
+        providers,
         userSystemPrompt: "shouldBeIgnored",
       } as unknown as CopilotSettings);
-      expect(newSettings.openAIApiKey).toBe("testApiKey");
-      expect(newSettings.cohereApiKey).toBe("anotherTestApiKey");
+      expect(newSettings.providers[0].apiKey).toBe("testApiKey");
+      expect(newSettings.providers[1].apiKey).toBe("anotherTestApiKey");
       expect(newSettings.userSystemPrompt).toBe("shouldBeIgnored");
     });
   });

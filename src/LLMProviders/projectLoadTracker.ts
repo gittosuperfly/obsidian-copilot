@@ -143,19 +143,7 @@ export class ProjectLoadTracker {
     // Add all matching file paths to the list
     allItems.push(...projectAllFiles.map((file: TFile) => file.path));
 
-    // 2. Count all Web URLs
-    const configuredWebUrls = project.contextSource?.webUrls?.trim() || "";
-    if (configuredWebUrls) {
-      const webUrls = configuredWebUrls.split("\n").filter((url) => url.trim());
-      allItems.push(...webUrls);
-    }
-
-    // 3. Count all YouTube URLs
-    const configuredYoutubeUrls = project.contextSource?.youtubeUrls?.trim() || "";
-    if (configuredYoutubeUrls) {
-      const youtubeUrls = configuredYoutubeUrls.split("\n").filter((url) => url.trim());
-      allItems.push(...youtubeUrls);
-    }
+    // Web/YouTube sources removed
 
     // Add all items to the total list
     if (allItems.length > 0) {
@@ -177,37 +165,7 @@ export class ProjectLoadTracker {
   ): void {
     logInfo(`[markAllCachedItemsAsSuccess] Starting for project: ${project.name || "default"}`);
 
-    // 1. Mark cached Web URLs
-    const configuredWebUrls = project.contextSource?.webUrls?.trim() || "";
-    if (configuredWebUrls) {
-      const urlsInConfig = configuredWebUrls.split("\n").filter((url) => url.trim());
-      const cachedUrls = urlsInConfig.filter((url) => contextCache.webContexts[url]);
-      cachedUrls.forEach((url) => {
-        this.markCachedItemAsSuccess(url);
-      });
-      if (cachedUrls.length > 0) {
-        logInfo(
-          `[markAllCachedItemsAsSuccess] Project ${project.name}: Marked ${cachedUrls.length} cached Web URLs as successful`
-        );
-      }
-    }
-
-    // 2. Mark cached YouTube URLs
-    const configuredYoutubeUrls = project.contextSource?.youtubeUrls?.trim() || "";
-    if (configuredYoutubeUrls) {
-      const urlsInConfig = configuredYoutubeUrls.split("\n").filter((url) => url.trim());
-      const cachedUrls = urlsInConfig.filter((url) => contextCache.youtubeContexts[url]);
-      cachedUrls.forEach((url) => {
-        this.markCachedItemAsSuccess(url);
-      });
-      if (cachedUrls.length > 0) {
-        logInfo(
-          `[markAllCachedItemsAsSuccess] Project ${project.name}: Marked ${cachedUrls.length} cached YouTube URLs as successful`
-        );
-      }
-    }
-
-    // 3. Only mark markdown files present in fileContexts as successful, does not include Non-markdown files.
+    // Only mark markdown files present in fileContexts as successful, does not include Non-markdown files.
     // because track Non-markdown in the processNonMarkdownFiles method
     if (contextCache.fileContexts) {
       // only for markdown files

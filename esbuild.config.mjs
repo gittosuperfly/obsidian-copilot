@@ -1,6 +1,7 @@
 import esbuild from "esbuild";
 import svgPlugin from "esbuild-plugin-svg";
 import process from "process";
+import { mkdir } from "fs/promises";
 import wasmPlugin from "./wasmPlugin.mjs";
 import nodeModuleShim from "./nodeModuleShim.mjs";
 
@@ -18,6 +19,17 @@ if (typeof import_meta === 'undefined') {
 `;
 
 const prod = process.argv[2] === "production";
+
+/**
+ * Ensure the build directory exists before writing production artifacts.
+ */
+const ensureBuildDir = async () => {
+  await mkdir("build", { recursive: true });
+};
+
+if (prod) {
+  await ensureBuildDir();
+}
 
 const context = await esbuild.context({
   banner: {
@@ -53,7 +65,7 @@ const context = await esbuild.context({
   logLevel: "info",
   sourcemap: prod ? false : "inline",
   treeShaking: true,
-  outfile: "main.js",
+  outfile: prod ? "build/main.js" : "main.js",
   plugins: [nodeModuleShim, svgPlugin(), wasmPlugin],
   define: {
     global: "window",

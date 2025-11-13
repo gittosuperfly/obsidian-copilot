@@ -34,12 +34,12 @@ I'll search your vault for piano learning notes.
 <salientTerms>["piano", "learning", "practice", "music"]</salientTerms>
 </use_tool>
 
-Let me also search the web.
+Let me also inspect another note.
 
 <use_tool>
-<name>webSearch</name>
-<query>piano techniques</query>
-<chatHistory>[]</chatHistory>
+<name>noteInspector</name>
+<notePath>Projects/ML.md</notePath>
+<sectionHints>["Context", "Findings"]</sectionHints>
 </use_tool>
     `;
 
@@ -53,9 +53,9 @@ Let me also search the web.
     expect(toolCalls[0].args.salientTerms).toEqual(["piano", "learning", "practice", "music"]);
 
     // Second tool call
-    expect(toolCalls[1].name).toBe("webSearch");
-    expect(toolCalls[1].args.query).toBe("piano techniques");
-    expect(toolCalls[1].args.chatHistory).toEqual([]); // JSON array format
+    expect(toolCalls[1].name).toBe("noteInspector");
+    expect(toolCalls[1].args.notePath).toBe("Projects/ML.md");
+    expect(toolCalls[1].args.sectionHints).toEqual(["Context", "Findings"]); // JSON array format
   });
 
   it("should handle tool calls with no parameters", () => {
@@ -97,16 +97,16 @@ Updated content
   it("should handle string parameters without JSON parsing", () => {
     const text = `
 <use_tool>
-<name>youtubeTranscription</name>
-<url>https://youtube.com/watch?v=123</url>
+<name>readNote</name>
+<path>Projects/plan.md</path>
 </use_tool>
     `;
 
     const toolCalls = parseXMLToolCalls(text);
 
     expect(toolCalls).toHaveLength(1);
-    expect(toolCalls[0].name).toBe("youtubeTranscription");
-    expect(toolCalls[0].args.url).toBe("https://youtube.com/watch?v=123");
+    expect(toolCalls[0].name).toBe("readNote");
+    expect(toolCalls[0].args.path).toBe("Projects/plan.md");
   });
 
   it("should handle hybrid approach with both JSON and XML formats", () => {
@@ -204,48 +204,6 @@ Updated content
     const toolCalls = parseXMLToolCalls(text);
 
     expect(toolCalls).toHaveLength(0);
-  });
-
-  it("should handle webSearch tool with hybrid chatHistory formats", () => {
-    const text = `
-<use_tool>
-<name>webSearch</name>
-<query>piano practice tips</query>
-<chatHistory>[]</chatHistory>
-</use_tool>
-
-<use_tool>
-<name>webSearch</name>
-<query>follow-up search</query>
-<chatHistory>
-  <item>
-    <role>user</role>
-    <content>Tell me about piano</content>
-  </item>
-  <item>
-    <role>assistant</role>
-    <content>Piano is a musical instrument</content>
-  </item>
-</chatHistory>
-</use_tool>
-    `;
-
-    const toolCalls = parseXMLToolCalls(text);
-
-    expect(toolCalls).toHaveLength(2);
-
-    // First tool call - JSON empty array
-    expect(toolCalls[0].name).toBe("webSearch");
-    expect(toolCalls[0].args.query).toBe("piano practice tips");
-    expect(toolCalls[0].args.chatHistory).toEqual([]);
-
-    // Second tool call - XML item format
-    expect(toolCalls[1].name).toBe("webSearch");
-    expect(toolCalls[1].args.query).toBe("follow-up search");
-    expect(toolCalls[1].args.chatHistory).toEqual([
-      { role: "user", content: "Tell me about piano" },
-      { role: "assistant", content: "Piano is a musical instrument" },
-    ]);
   });
 
   it("should handle malformed JSON gracefully", () => {
@@ -358,7 +316,7 @@ After tool call.`;
 Middle text.
 
 <use_tool>
-<name>webSearch</name>
+<name>readNote</name>
 <query>second search</query>
 </use_tool>
 
@@ -394,7 +352,7 @@ Final text.`;
       const text = `Some text before.
 
 <use_tool>
-<name>webSearch</name>
+<name>readNote</name>
 <query>incomplete query
 <someParam>value`;
 
@@ -413,7 +371,7 @@ Final text.`;
 Middle text.
 
 <use_tool>
-<name>webSearch</name>
+<name>readNote</name>
 <query>incomplete`;
 
       const result = stripToolCallXML(text);
@@ -470,7 +428,7 @@ This text should remain.`;
 More text.
 
 <use_tool>
-<name>webSearch</name>
+<name>readNote</name>
 <param>value`;
 
       const result = stripToolCallXML(text);

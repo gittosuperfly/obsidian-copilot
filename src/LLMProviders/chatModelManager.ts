@@ -1,6 +1,5 @@
 import { CustomModel, getModelKey, ModelConfig } from "@/aiParams";
 import {
-  BREVILABS_MODELS_BASE_URL,
   BUILTIN_CHAT_MODELS,
   ChatModelProviders,
   ModelCapability,
@@ -8,12 +7,8 @@ import {
 } from "@/constants";
 import { getDecryptedKey } from "@/encryptionService";
 import { logError, logInfo } from "@/logger";
-import {
-  CopilotSettings,
-  getModelKeyFromModel,
-  getSettings,
-  subscribeToSettingsChange,
-} from "@/settings/model";
+import { getModelKeyFromModel, getProviderForModel, getProviderType } from "@/aiParams";
+import { CopilotSettings, getSettings, subscribeToSettingsChange } from "@/settings/model";
 import {
   err2String,
   findCustomModel,
@@ -54,7 +49,6 @@ const CHAT_PROVIDER_CONSTRUCTORS = {
   [ChatModelProviders.GROQ]: ChatGroq,
   [ChatModelProviders.OPENAI_FORMAT]: ChatOpenAI,
   [ChatModelProviders.SILICONFLOW]: ChatOpenAI,
-  [ChatModelProviders.COPILOT_PLUS]: ChatOpenAI,
   [ChatModelProviders.MISTRAL]: ChatMistralAI,
   [ChatModelProviders.DEEPSEEK]: ChatDeepSeek,
   [ChatModelProviders.AMAZON_BEDROCK]: BedrockChatModel,
@@ -76,24 +70,39 @@ export default class ChatModelManager {
 
   private static readonly ANTHROPIC_THINKING_BUDGET_TOKENS = 2048;
 
-  private readonly providerApiKeyMap: Record<ChatModelProviders, () => string> = {
-    [ChatModelProviders.OPENAI]: () => getSettings().openAIApiKey,
-    [ChatModelProviders.GOOGLE]: () => getSettings().googleApiKey,
-    [ChatModelProviders.AZURE_OPENAI]: () => getSettings().azureOpenAIApiKey,
-    [ChatModelProviders.ANTHROPIC]: () => getSettings().anthropicApiKey,
-    [ChatModelProviders.COHEREAI]: () => getSettings().cohereApiKey,
-    [ChatModelProviders.OPENROUTERAI]: () => getSettings().openRouterAiApiKey,
-    [ChatModelProviders.GROQ]: () => getSettings().groqApiKey,
-    [ChatModelProviders.XAI]: () => getSettings().xaiApiKey,
-    [ChatModelProviders.OLLAMA]: () => "default-key",
-    [ChatModelProviders.LM_STUDIO]: () => "default-key",
-    [ChatModelProviders.OPENAI_FORMAT]: () => "default-key",
-    [ChatModelProviders.COPILOT_PLUS]: () => getSettings().plusLicenseKey,
-    [ChatModelProviders.MISTRAL]: () => getSettings().mistralApiKey,
-    [ChatModelProviders.DEEPSEEK]: () => getSettings().deepseekApiKey,
-    [ChatModelProviders.AMAZON_BEDROCK]: () => getSettings().amazonBedrockApiKey,
-    [ChatModelProviders.SILICONFLOW]: () => getSettings().siliconflowApiKey,
-  } as const;
+  /**
+   * DEPRECATED: providerApiKeyMap removed in provider-centric architecture.
+   * API keys are now retrieved from ModelProvider via getProviderForModel().
+   */
+
+  /**
+   * Helper method to get provider info for a model.
+   * Returns provider's baseUrl and apiKey, with model-level baseUrl override support.
+   */
+  private getProviderInfo(customModel: CustomModel): {
+    baseUrl: string | undefined;
+    apiKey: string;
+    type: string;
+  } {
+    const settings = getSettings();
+    const provider = getProviderForModel(customModel, settings.providers);
+
+    if (!provider) {
+      logError(`Provider not found for model: ${customModel.name}`);
+      return {
+        baseUrl: undefined,
+        apiKey: "",
+        type: "",
+      };
+    }
+
+    return {
+      // Use model-specific baseUrl if provided, otherwise use provider's baseUrl
+      baseUrl: customModel.baseUrl || provider.baseUrl,
+      apiKey: provider.apiKey,
+      type: provider.type,
+    };
+  }
 
   private constructor() {
     this.buildModelMap();
@@ -157,16 +166,17 @@ export default class ChatModelManager {
         : {}),
     };
 
+    const providerInfo = this.getProviderInfo(customModel);
+
     const providerConfig: {
       [K in keyof ChatProviderConstructMap]: ConstructorParameters<ChatProviderConstructMap[K]>[0];
     } = {
       [ChatModelProviders.OPENAI]: {
         modelName: modelName,
-        apiKey: await getDecryptedKey(customModel.apiKey || settings.openAIApiKey),
+        apiKey: await getDecryptedKey(providerInfo.apiKey),
         configuration: {
-          baseURL: customModel.baseUrl,
+          baseURL: providerInfo.baseUrl,
           fetch: customModel.enableCors ? safeFetch : undefined,
-          organization: await getDecryptedKey(customModel.openAIOrgId || settings.openAIOrgId),
         },
         ...this.getOpenAISpecialConfig(
           modelName,
@@ -176,9 +186,9 @@ export default class ChatModelManager {
         ),
       },
       [ChatModelProviders.ANTHROPIC]: {
-        anthropicApiKey: await getDecryptedKey(customModel.apiKey || settings.anthropicApiKey),
+        anthropicApiKey: await getDecryptedKey(providerInfo.apiKey),
         model: modelName,
-        anthropicApiUrl: customModel.baseUrl,
+        anthropicApiUrl: providerInfo.baseUrl,
         clientOptions: {
           // Required to bypass CORS restrictions
           defaultHeaders: {
@@ -194,19 +204,13 @@ export default class ChatModelManager {
         }),
       },
       [ChatModelProviders.AZURE_OPENAI]: {
-        modelName:
-          customModel.azureOpenAIApiDeploymentName || settings.azureOpenAIApiDeploymentName,
-        apiKey: await getDecryptedKey(customModel.apiKey || settings.azureOpenAIApiKey),
+        modelName: modelName,
+        apiKey: await getDecryptedKey(providerInfo.apiKey),
         configuration: {
-          baseURL:
-            customModel.baseUrl ||
-            `https://${customModel.azureOpenAIApiInstanceName || settings.azureOpenAIApiInstanceName}.openai.azure.com/openai/deployments/${customModel.azureOpenAIApiDeploymentName || settings.azureOpenAIApiDeploymentName}`,
-          defaultQuery: {
-            "api-version": customModel.azureOpenAIApiVersion || settings.azureOpenAIApiVersion,
-          },
+          baseURL: providerInfo.baseUrl,
           defaultHeaders: {
             "Content-Type": "application/json",
-            "api-key": await getDecryptedKey(customModel.apiKey || settings.azureOpenAIApiKey),
+            "api-key": await getDecryptedKey(providerInfo.apiKey),
           },
           fetch: customModel.enableCors ? safeFetch : undefined,
         },
@@ -218,11 +222,11 @@ export default class ChatModelManager {
         ),
       },
       [ChatModelProviders.COHEREAI]: {
-        apiKey: await getDecryptedKey(customModel.apiKey || settings.cohereApiKey),
+        apiKey: await getDecryptedKey(providerInfo.apiKey),
         model: modelName,
       },
       [ChatModelProviders.GOOGLE]: {
-        apiKey: await getDecryptedKey(customModel.apiKey || settings.googleApiKey),
+        apiKey: await getDecryptedKey(providerInfo.apiKey),
         model: modelName,
         safetySettings: [
           {
@@ -242,18 +246,18 @@ export default class ChatModelManager {
             threshold: HarmBlockThreshold.BLOCK_NONE,
           },
         ],
-        baseUrl: customModel.baseUrl,
+        baseUrl: providerInfo.baseUrl,
       },
       [ChatModelProviders.XAI]: {
-        apiKey: await getDecryptedKey(customModel.apiKey || settings.xaiApiKey),
+        apiKey: await getDecryptedKey(providerInfo.apiKey),
         model: modelName,
         // This langchainjs XAI client does not support baseURL override
       },
       [ChatModelProviders.OPENROUTERAI]: {
         modelName: modelName,
-        apiKey: await getDecryptedKey(customModel.apiKey || settings.openRouterAiApiKey),
+        apiKey: await getDecryptedKey(providerInfo.apiKey),
         configuration: {
-          baseURL: customModel.baseUrl || "https://openrouter.ai/api/v1",
+          baseURL: providerInfo.baseUrl || "https://openrouter.ai/api/v1",
           fetch: customModel.enableCors ? safeFetch : undefined,
           defaultHeaders: {
             "HTTP-Referer": "https://obsidiancopilot.com",
@@ -270,31 +274,31 @@ export default class ChatModelManager {
             : undefined,
       },
       [ChatModelProviders.GROQ]: {
-        apiKey: await getDecryptedKey(customModel.apiKey || settings.groqApiKey),
+        apiKey: await getDecryptedKey(providerInfo.apiKey),
         model: modelName,
       },
       [ChatModelProviders.OLLAMA]: {
         // ChatOllama has `model` instead of `modelName`!!
         model: modelName,
         // MUST NOT use /v1 in the baseUrl for ollama
-        baseUrl: customModel.baseUrl || "http://localhost:11434",
+        baseUrl: providerInfo.baseUrl || "http://localhost:11434",
         headers: new Headers({
-          Authorization: `Bearer ${await getDecryptedKey(customModel.apiKey || "default-key")}`,
+          Authorization: `Bearer ${await getDecryptedKey(providerInfo.apiKey || "default-key")}`,
         }),
       },
       [ChatModelProviders.LM_STUDIO]: {
         modelName: modelName,
-        apiKey: customModel.apiKey || "default-key",
+        apiKey: providerInfo.apiKey || "default-key",
         configuration: {
-          baseURL: customModel.baseUrl || "http://localhost:1234/v1",
+          baseURL: providerInfo.baseUrl || "http://localhost:1234/v1",
           fetch: customModel.enableCors ? safeFetch : undefined,
         },
       },
       [ChatModelProviders.OPENAI_FORMAT]: {
         modelName: modelName,
-        apiKey: await getDecryptedKey(customModel.apiKey || settings.openAIApiKey),
+        apiKey: await getDecryptedKey(providerInfo.apiKey),
         configuration: {
-          baseURL: customModel.baseUrl,
+          baseURL: providerInfo.baseUrl,
           fetch: customModel.enableCors ? safeFetch : undefined,
           defaultHeaders: { "dangerously-allow-browser": "true" },
         },
@@ -307,9 +311,9 @@ export default class ChatModelManager {
       },
       [ChatModelProviders.SILICONFLOW]: {
         modelName: modelName,
-        apiKey: await getDecryptedKey(customModel.apiKey || settings.siliconflowApiKey),
+        apiKey: await getDecryptedKey(providerInfo.apiKey),
         configuration: {
-          baseURL: customModel.baseUrl || ProviderInfo[ChatModelProviders.SILICONFLOW].host,
+          baseURL: providerInfo.baseUrl || ProviderInfo[ChatModelProviders.SILICONFLOW].host,
           fetch: customModel.enableCors ? safeFetch : undefined,
         },
         ...this.getOpenAISpecialConfig(
@@ -319,24 +323,16 @@ export default class ChatModelManager {
           customModel
         ),
       },
-      [ChatModelProviders.COPILOT_PLUS]: {
-        modelName: modelName,
-        apiKey: await getDecryptedKey(settings.plusLicenseKey),
-        configuration: {
-          baseURL: BREVILABS_MODELS_BASE_URL,
-          fetch: customModel.enableCors ? safeFetch : undefined,
-        },
-      },
       [ChatModelProviders.MISTRAL]: {
         model: modelName,
-        apiKey: await getDecryptedKey(customModel.apiKey || settings.mistralApiKey),
-        serverURL: customModel.baseUrl,
+        apiKey: await getDecryptedKey(providerInfo.apiKey),
+        serverURL: providerInfo.baseUrl,
       },
       [ChatModelProviders.DEEPSEEK]: {
         modelName: modelName,
-        apiKey: await getDecryptedKey(customModel.apiKey || settings.deepseekApiKey),
+        apiKey: await getDecryptedKey(providerInfo.apiKey),
         configuration: {
-          baseURL: customModel.baseUrl || ProviderInfo[ChatModelProviders.DEEPSEEK].host,
+          baseURL: providerInfo.baseUrl || ProviderInfo[ChatModelProviders.DEEPSEEK].host,
           fetch: customModel.enableCors ? safeFetch : undefined,
         },
       },
@@ -344,9 +340,9 @@ export default class ChatModelManager {
     };
 
     let selectedProviderConfig =
-      providerConfig[customModel.provider as keyof typeof providerConfig] || {};
+      providerConfig[providerInfo.type as keyof typeof providerConfig] || {};
 
-    if (customModel.provider === ChatModelProviders.AMAZON_BEDROCK) {
+    if (providerInfo.type === ChatModelProviders.AMAZON_BEDROCK) {
       selectedProviderConfig = await this.buildBedrockConfig(
         customModel,
         modelName,
@@ -358,7 +354,7 @@ export default class ChatModelManager {
 
     // Get provider-specific parameters (like topP, frequencyPenalty) that the provider supports
     const providerSpecificParams = this.getProviderSpecificParams(
-      customModel.provider as ChatModelProviders,
+      providerInfo.type as ChatModelProviders,
       customModel
     );
 
@@ -440,18 +436,15 @@ export default class ChatModelManager {
     maxTokens: number,
     temperature: number | undefined
   ): Promise<BedrockChatModelFields> {
-    const apiKeySource = customModel.apiKey || settings.amazonBedrockApiKey;
-    if (!apiKeySource) {
-      throw new Error(
-        "Amazon Bedrock API key is not configured. Provide a key in Settings > API Keys or the model definition."
-      );
+    const providerInfo = this.getProviderInfo(customModel);
+    if (!providerInfo.apiKey) {
+      throw new Error("Amazon Bedrock API key is not configured in the provider settings.");
     }
 
-    const apiKey = await getDecryptedKey(apiKeySource);
+    const apiKey = await getDecryptedKey(providerInfo.apiKey);
 
     const explicitRegion = customModel.bedrockRegion?.trim();
-    const settingsRegion = settings.amazonBedrockRegion?.trim();
-    const resolvedRegion = explicitRegion || settingsRegion || "us-east-1";
+    const resolvedRegion = explicitRegion || "us-east-1";
     const baseUrlInput = customModel.baseUrl?.trim();
     const baseUrl = baseUrlInput ? baseUrlInput.replace(/\/+$/, "") : undefined;
     const endpointBase = baseUrl || `https://bedrock-runtime.${resolvedRegion}.amazonaws.com`;
@@ -544,8 +537,9 @@ export default class ChatModelManager {
 
     allModels.forEach((model) => {
       if (model.enabled) {
-        if (!Object.values(ChatModelProviders).contains(model.provider as ChatModelProviders)) {
-          console.warn(`Unknown provider: ${model.provider} for model: ${model.name}`);
+        const providerType = getProviderType(model, getSettings().providers);
+        if (!Object.values(ChatModelProviders).contains(providerType as ChatModelProviders)) {
+          console.warn(`Unknown provider: ${providerType} for model: ${model.name}`);
           return;
         }
 
@@ -555,7 +549,7 @@ export default class ChatModelManager {
         modelMap[modelKey] = {
           hasApiKey: hasCredentials,
           AIConstructor: constructor,
-          vendor: model.provider,
+          vendor: providerType,
         };
       }
     });
@@ -567,27 +561,19 @@ export default class ChatModelManager {
    * @returns True when the provider requirements are satisfied, otherwise false.
    */
   private hasProviderCredentials(model: CustomModel): boolean {
-    if (model.provider === ChatModelProviders.AMAZON_BEDROCK) {
-      const settings = getSettings();
-      const apiKey = model.apiKey || settings.amazonBedrockApiKey;
-      // Region defaults to us-east-1 if not specified, so API key is the only requirement
-      return Boolean(apiKey);
-    }
+    const providerInfo = this.getProviderInfo(model);
 
-    const getDefaultApiKey = this.providerApiKeyMap[model.provider as ChatModelProviders];
-    if (!getDefaultApiKey) {
-      return Boolean(model.apiKey);
-    }
-
-    return Boolean(model.apiKey || getDefaultApiKey());
+    // Provider info always has apiKey from the provider, so just check if it exists
+    return Boolean(providerInfo.apiKey);
   }
 
   getProviderConstructor(model: CustomModel): ChatConstructorType {
+    const providerType = getProviderType(model, getSettings().providers);
     const constructor: ChatConstructorType =
-      CHAT_PROVIDER_CONSTRUCTORS[model.provider as ChatModelProviders];
+      CHAT_PROVIDER_CONSTRUCTORS[providerType as ChatModelProviders];
     if (!constructor) {
-      console.warn(`Unknown provider: ${model.provider} for model: ${model.name}`);
-      throw new Error(`Unknown provider: ${model.provider} for model: ${model.name}`);
+      console.warn(`Unknown provider: ${providerType} for model: ${model.name}`);
+      throw new Error(`Unknown provider: ${providerType} for model: ${model.name}`);
     }
     return constructor;
   }
@@ -600,8 +586,7 @@ export default class ChatModelManager {
   }
 
   /**
-   * Helper to validate a model config has valid credentials and meets entitlement requirements.
-   * Does NOT check believerExclusive - that's validated at usage time, not selection time.
+   * Helper to validate a model config has valid credentials.
    */
   private isModelConfigValid(model: CustomModel, settings: CopilotSettings): boolean {
     const modelKey = getModelKeyFromModel(model);
@@ -612,11 +597,6 @@ export default class ChatModelManager {
       return false;
     }
 
-    // Check Copilot Plus entitlement requirements
-    if (model.plusExclusive && !settings.isPlusUser) {
-      return false;
-    }
-
     return true;
   }
 
@@ -624,9 +604,6 @@ export default class ChatModelManager {
    * Resolves the active chat model for temperature override operations.
    * Uses a single source of truth: getModelKey() -> findCustomModel()
    * Falls back to first valid model in settings.activeModels if current selection is invalid.
-   *
-   * Note: believerExclusive models are trusted if explicitly selected by the user,
-   * but skipped in fallback to avoid selecting them for non-Believer users.
    */
   private resolveModelForTemperatureOverride(): CustomModel {
     const settings = getSettings();
@@ -637,7 +614,6 @@ export default class ChatModelManager {
       if (currentModelKey) {
         const model = findCustomModel(currentModelKey, settings.activeModels);
 
-        // Validate it (trust believerExclusive if user selected it)
         if (this.isModelConfigValid(model, settings)) {
           return model;
         }
@@ -647,9 +623,8 @@ export default class ChatModelManager {
     }
 
     // Fallback: Find first valid model in settings.activeModels
-    // Skip believerExclusive models in fallback to avoid selecting them for non-Believer users
     for (const model of settings.activeModels) {
-      if (model.enabled && !model.believerExclusive && this.isModelConfigValid(model, settings)) {
+      if (model.enabled && this.isModelConfigValid(model, settings)) {
         return model;
       }
     }
@@ -685,11 +660,12 @@ export default class ChatModelManager {
 
       // Log if Responses API is enabled for GPT-5
       const modelInfo = getModelInfo(model.name);
+      const providerType = getProviderType(model, getSettings().providers);
       if (
         modelInfo.isGPT5 &&
-        (model.provider === ChatModelProviders.OPENAI ||
-          model.provider === ChatModelProviders.AZURE_OPENAI ||
-          model.provider === ChatModelProviders.OPENAI_FORMAT)
+        (providerType === ChatModelProviders.OPENAI ||
+          providerType === ChatModelProviders.AZURE_OPENAI ||
+          providerType === ChatModelProviders.OPENAI_FORMAT)
       ) {
         logInfo(`Chat model set with Responses API for GPT-5: ${model.name}`);
       }
@@ -708,12 +684,6 @@ export default class ChatModelManager {
       throw new Error(`No model found for: ${modelKey}`);
     }
     if (!selectedModel.hasApiKey) {
-      // Provide specific error message for Plus models
-      if (model.provider === ChatModelProviders.COPILOT_PLUS) {
-        throw new Error(
-          `Copilot Plus license key is not configured. Please enter your license key in the Copilot Plus section at the top of Basic Settings to use ${model.name}.`
-        );
-      }
       const errorMessage = `API key is not provided for the model: ${modelKey}.`;
       // Don't show popup notice - let error propagate to be handled by chat interface
       throw new Error(errorMessage);
@@ -809,11 +779,12 @@ export default class ChatModelManager {
         ...tokenConfig,
       };
 
+      const providerType = getProviderType(model, getSettings().providers);
       if (
         modelInfo.isGPT5 &&
-        (model.provider === ChatModelProviders.OPENAI ||
-          model.provider === ChatModelProviders.AZURE_OPENAI ||
-          model.provider === ChatModelProviders.OPENAI_FORMAT)
+        (providerType === ChatModelProviders.OPENAI ||
+          providerType === ChatModelProviders.AZURE_OPENAI ||
+          providerType === ChatModelProviders.OPENAI_FORMAT)
       ) {
         constructorConfig.useResponsesApi = true;
       }

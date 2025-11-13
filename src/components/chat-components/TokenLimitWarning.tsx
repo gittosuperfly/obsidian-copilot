@@ -1,6 +1,6 @@
-import { getModelKey } from "@/aiParams";
+import { getModelKey, getModelKeyFromModel } from "@/aiParams";
 import { Button } from "@/components/ui/button";
-import { getModelKeyFromModel, getSettings, updateSetting } from "@/settings/model";
+import { getSettings, updateSetting } from "@/settings/model";
 import { ModelEditModal } from "@/settings/v2/components/ModelEditDialog";
 import { ChatMessage } from "@/types/message";
 import { AlertTriangle } from "lucide-react";

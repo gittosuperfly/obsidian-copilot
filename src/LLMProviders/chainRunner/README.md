@@ -6,7 +6,7 @@ This directory contains the refactored chain runner system for Obsidian Copilot,
 
 The chain runner system provides two distinct tool calling approaches:
 
-1. **Legacy Tool Calling** (CopilotPlusChainRunner) - Uses Brevilabs API for intent analysis
+1. **Legacy Tool Calling** (AdvancedChainRunner) - Uses Brevilabs API for intent analysis
 2. **Autonomous Agent** (AutonomousAgentChainRunner) - Uses XML-based tool calling
 
 ## Architecture
@@ -16,7 +16,7 @@ chainRunner/
 ├── BaseChainRunner.ts                 # Abstract base class with shared functionality
 ├── LLMChainRunner.ts                  # Basic LLM interaction (no tools)
 ├── VaultQAChainRunner.ts              # Vault-only Q&A with retrieval
-├── CopilotPlusChainRunner.ts          # Legacy tool calling system
+├── AdvancedChainRunner.ts          # Legacy tool calling system
 ├── ProjectChainRunner.ts              # Project-aware extension of Plus
 ├── AutonomousAgentChainRunner.ts   # XML-based autonomous agent tool calling
 ├── index.ts                           # Main exports
@@ -29,7 +29,7 @@ chainRunner/
 
 ## Tool Calling Systems Comparison
 
-### 1. Legacy Tool Calling (CopilotPlusChainRunner)
+### 1. Legacy Tool Calling (AdvancedChainRunner)
 
 **How it works:**
 
@@ -63,11 +63,9 @@ const response = await this.streamMultimodalResponse(enhancedMessage, ...);
 **Tools Available:**
 
 - `localSearch` - Search vault content
-- `webSearch` - Search the web
 - `getCurrentTime` - Get current time
 - `getFileTree` - Get file structure
 - `pomodoroTool` - Pomodoro timer
-- `youtubeTranscription` - YouTube video transcription
 
 ### 2. Autonomous Agent (AutonomousAgentChainRunner)
 
@@ -407,12 +405,10 @@ async function executeSequentialToolCall(
 All tools from the legacy system plus autonomous decision-making:
 
 - **localSearch** - Vault content search with salient terms
-- **webSearch** - Web search with chat history context
 - **getFileTree** - File structure exploration
 - **getCurrentTime** - Time-based queries
 - **pomodoroTool** - Productivity timer
 - **indexTool** - Vault indexing operations
-- **youtubeTranscription** - Video content analysis
 
 ### System Prompt Engineering
 
@@ -468,7 +464,7 @@ const runner = chainManager.getChainRunner(); // Returns AutonomousAgentChainRun
 **Autonomous Agent Process:**
 
 1. **Iteration 1**: AI reasons about the task → calls `localSearch` for ML notes
-2. **Iteration 2**: Analyzes vault results → calls `webSearch` for current practices
+2. **Iteration 2**: Analyzes vault results → calls `readNote` on the most relevant files
 3. **Iteration 3**: Synthesizes both sources → provides comprehensive response
 
 **Legacy Process:**
@@ -485,8 +481,8 @@ const runner = chainManager.getChainRunner(); // Returns AutonomousAgentChainRun
 try {
   // Sequential thinking execution
 } catch (error) {
-  // Automatic fallback to CopilotPlusChainRunner
-  const fallbackRunner = new CopilotPlusChainRunner(this.chainManager);
+  // Automatic fallback to AdvancedChainRunner
+  const fallbackRunner = new AdvancedChainRunner(this.chainManager);
   return await fallbackRunner.run(/* same parameters */);
 }
 ```
@@ -604,11 +600,11 @@ The adapter creates a better conversational flow by allowing brief explanatory s
 
 ```
 [Think block]
-I'll search your vault and web for piano practice information.
+I'll search your vault for piano practice information.
 🔍 Calling vault search...
 [Think block]
 Let me gather more specific information about practice routines.
-🌐 Calling web search...
+📁 Reading supporting notes...
 [Think block]
 [final answer]
 ```

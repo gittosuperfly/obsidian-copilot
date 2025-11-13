@@ -2,9 +2,11 @@ import React from "react";
 import { SettingItem } from "@/components/ui/setting-item";
 import { ToolRegistry } from "@/tools/ToolRegistry";
 import { updateSetting, useSettingsValue } from "@/settings/model";
+import { useI18n } from "@/i18n";
 
 export const ToolSettingsSection: React.FC = () => {
   const settings = useSettingsValue();
+  const { t } = useI18n();
   const registry = ToolRegistry.getInstance();
 
   const enabledToolIds = new Set(settings.autonomousAgentEnabledToolIds || []);
@@ -55,8 +57,8 @@ export const ToolSettingsSection: React.FC = () => {
     <>
       <SettingItem
         type="slider"
-        title="Max Iterations"
-        description="Maximum number of reasoning iterations the autonomous agent can perform. Higher values allow for more complex reasoning but may take longer."
+        title={t("settings.tool.maxIterations.title")}
+        description={t("settings.tool.maxIterations.description")}
         value={settings.autonomousAgentMaxIterations ?? 4}
         onChange={(value) => {
           updateSetting("autonomousAgentMaxIterations", value);
@@ -67,10 +69,8 @@ export const ToolSettingsSection: React.FC = () => {
       />
 
       <div className="tw-mt-4 tw-rounded-lg tw-bg-secondary tw-p-4">
-        <div className="tw-mb-2 tw-text-sm tw-font-medium">Agent Accessible Tools</div>
-        <div className="tw-mb-4 tw-text-xs tw-text-muted">
-          Toggle which tools the autonomous agent can use
-        </div>
+        <div className="tw-mb-2 tw-text-sm tw-font-medium">{t("settings.tool.heading")}</div>
+        <div className="tw-mb-4 tw-text-xs tw-text-muted">{t("settings.tool.description")}</div>
 
         <div className="tw-flex tw-flex-col tw-gap-2">{renderToolsByCategory()}</div>
       </div>

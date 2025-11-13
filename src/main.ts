@@ -1,8 +1,6 @@
-import { BrevilabsClient } from "@/LLMProviders/brevilabsClient";
 import ProjectManager from "@/LLMProviders/projectManager";
 import { CustomModel, getCurrentProject, setSelectedTextContexts } from "@/aiParams";
 import { SelectedTextContext } from "@/types/message";
-import { AutocompleteService } from "@/autocomplete/autocompleteService";
 import { registerCommands } from "@/commands";
 import CopilotView from "@/components/CopilotView";
 import { APPLY_VIEW_TYPE, ApplyView } from "@/components/composer/ApplyView";
@@ -21,16 +19,15 @@ import { logInfo } from "@/logger";
 import { logFileManager } from "@/logFileManager";
 import { UserMemoryManager } from "@/memory/UserMemoryManager";
 import { clearRecordedPromptPayload } from "@/LLMProviders/chainRunner/utils/promptPayloadRecorder";
-import { checkIsPlusUser } from "@/plusUtils";
 import VectorStoreManager from "@/search/vectorStoreManager";
 import { CopilotSettingTab } from "@/settings/SettingsPage";
 import {
-  getModelKeyFromModel,
   getSettings,
   sanitizeSettings,
   setSettings,
   subscribeToSettingsChange,
 } from "@/settings/model";
+import { getModelKeyFromModel } from "@/aiParams";
 import { ChatUIState } from "@/state/ChatUIState";
 import { VaultDataManager } from "@/state/vaultDataAtoms";
 import { FileParserManager } from "@/tools/FileParserManager";
@@ -45,7 +42,6 @@ import {
   TFolder,
   WorkspaceLeaf,
 } from "obsidian";
-import { IntentAnalyzer } from "./LLMProviders/intentAnalyzer";
 import { ChatHistoryItem } from "@/components/chat-components/ChatHistoryPopover";
 import { extractChatTitle, extractChatDate } from "@/utils/chatHistoryUtils";
 import { v4 as uuidv4 } from "uuid";
@@ -55,13 +51,11 @@ import { v4 as uuidv4 } from "uuid";
 export default class CopilotPlugin extends Plugin {
   // Plugin components
   projectManager: ProjectManager;
-  brevilabsClient: BrevilabsClient;
   userMessageHistory: string[] = [];
   vectorStoreManager: VectorStoreManager;
   fileParserManager: FileParserManager;
   customCommandRegister: CustomCommandRegister;
   settingsUnsubscriber?: () => void;
-  private autocompleteService: AutocompleteService;
   chatUIState: ChatUIState;
   userMemoryManager: UserMemoryManager;
   private selectionDebounceTimer?: number;
@@ -84,11 +78,6 @@ export default class CopilotPlugin extends Plugin {
     // Initialize built-in tools with vault access
     initializeBuiltinTools(this.app.vault);
 
-    // Initialize BrevilabsClient
-    this.brevilabsClient = BrevilabsClient.getInstance();
-    this.brevilabsClient.setPluginVersion(this.manifest.version);
-    checkIsPlusUser();
-
     // Initialize ProjectManager
     this.projectManager = ProjectManager.getInstance(this.app, this);
 
@@ -101,7 +90,7 @@ export default class CopilotPlugin extends Plugin {
     vaultDataManager.initialize();
 
     // Initialize FileParserManager early with other core services
-    this.fileParserManager = new FileParserManager(this.brevilabsClient, this.app.vault);
+    this.fileParserManager = new FileParserManager();
 
     // Initialize ChatUIState with new architecture
     const messageRepo = new MessageRepository();
@@ -135,8 +124,6 @@ export default class CopilotPlugin extends Plugin {
       }
     });
 
-    IntentAnalyzer.initTools(this.app.vault);
-
     this.registerEvent(
       this.app.workspace.on("editor-menu", (menu: Menu) => {
         return registerContextMenu(menu);
@@ -163,8 +150,6 @@ export default class CopilotPlugin extends Plugin {
       })
     );
 
-    // Initialize autocomplete service
-    this.autocompleteService = AutocompleteService.getInstance(this);
     this.customCommandRegister = new CustomCommandRegister(this, this.app.vault);
     this.app.workspace.onLayoutReady(() => {
       this.customCommandRegister.initialize().then(migrateCommands).then(suggestDefaultCommands);
@@ -185,7 +170,6 @@ export default class CopilotPlugin extends Plugin {
 
     this.customCommandRegister.cleanup();
     this.settingsUnsubscriber?.();
-    this.autocompleteService?.destroy();
 
     // Cleanup selection handler
     this.cleanupSelectionHandler();
@@ -435,16 +419,7 @@ export default class CopilotPlugin extends Plugin {
     // Add or update existing models in the map
     existingActiveModels.forEach((model) => {
       const key = getModelKeyFromModel(model);
-      const existingModel = modelMap.get(key);
-      if (existingModel) {
-        // If it's a built-in model, preserve the built-in status
-        modelMap.set(key, {
-          ...model,
-          isBuiltIn: existingModel.isBuiltIn || model.isBuiltIn,
-        });
-      } else {
-        modelMap.set(key, model);
-      }
+      modelMap.set(key, model);
     });
 
     return Array.from(modelMap.values());
@@ -651,7 +626,6 @@ export default class CopilotPlugin extends Plugin {
           textWeight: textWeight,
           timeRange: undefined,
           returnAll: false,
-          useRerankerThreshold: undefined,
         });
 
     const results = await retriever.getRelevantDocuments(query);

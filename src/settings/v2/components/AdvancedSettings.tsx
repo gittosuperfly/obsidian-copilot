@@ -4,9 +4,11 @@ import { logFileManager } from "@/logFileManager";
 import { flushRecordedPromptPayloadToLog } from "@/LLMProviders/chainRunner/utils/promptPayloadRecorder";
 import { updateSetting, useSettingsValue } from "@/settings/model";
 import React from "react";
+import { useI18n } from "@/i18n";
 
 export const AdvancedSettings: React.FC = () => {
   const settings = useSettingsValue();
+  const { t } = useI18n();
 
   return (
     <div className="tw-space-y-4">
@@ -14,18 +16,18 @@ export const AdvancedSettings: React.FC = () => {
       <section>
         <SettingItem
           type="textarea"
-          title="User System Prompt"
-          description="Customize the system prompt for all messages, may result in unexpected behavior!"
+          title={t("settings.advanced.systemPrompt.title")}
+          description={t("settings.advanced.systemPrompt.description")}
           value={settings.userSystemPrompt}
           onChange={(value) => updateSetting("userSystemPrompt", value)}
-          placeholder="Enter your system prompt here..."
+          placeholder={t("settings.advanced.systemPrompt.placeholder")}
         />
 
         <div className="tw-space-y-4">
           <SettingItem
             type="switch"
-            title="Enable Encryption"
-            description="Enable encryption for the API keys."
+            title={t("settings.advanced.encryption.title")}
+            description={t("settings.advanced.encryption.description")}
             checked={settings.enableEncryption}
             onCheckedChange={(checked) => {
               updateSetting("enableEncryption", checked);
@@ -34,8 +36,8 @@ export const AdvancedSettings: React.FC = () => {
 
           <SettingItem
             type="switch"
-            title="Debug Mode"
-            description="Debug mode will log some debug message to the console."
+            title={t("settings.advanced.debug.title")}
+            description={t("settings.advanced.debug.description")}
             checked={settings.debug}
             onCheckedChange={(checked) => {
               updateSetting("debug", checked);
@@ -44,8 +46,10 @@ export const AdvancedSettings: React.FC = () => {
 
           <SettingItem
             type="custom"
-            title="Create Log File"
-            description={`Open the Copilot log file (${logFileManager.getLogPath()}) for easy sharing when reporting issues.`}
+            title={t("settings.advanced.logFile.title")}
+            description={t("settings.advanced.logFile.description", {
+              path: logFileManager.getLogPath(),
+            })}
           >
             <Button
               variant="secondary"
@@ -56,7 +60,7 @@ export const AdvancedSettings: React.FC = () => {
                 await logFileManager.openLogFile();
               }}
             >
-              Create Log File
+              {t("settings.advanced.logFile.button")}
             </Button>
           </SettingItem>
         </div>

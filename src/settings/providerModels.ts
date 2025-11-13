@@ -1,4 +1,4 @@
-import { ChatModelProviders, SettingKeyProviders } from "@/constants";
+import { ChatModelProviders } from "@/constants";
 import { logError } from "@/logger";
 
 /**
@@ -7,7 +7,7 @@ import { logError } from "@/logger";
 export interface StandardModel {
   id: string; // Model unique identifier
   name: string; // Model display name
-  provider: SettingKeyProviders; // Provider
+  provider: ChatModelProviders; // Provider
 }
 
 // The list model interface return value for each Provider.
@@ -347,6 +347,7 @@ export interface SiliconFlowModel {
 // Response type mapping
 export interface ProviderResponseMap {
   [ChatModelProviders.OPENAI]: OpenAIModelResponse;
+  [ChatModelProviders.OPENAI_FORMAT]: OpenAIModelResponse;
   [ChatModelProviders.GOOGLE]: GoogleModelResponse;
   [ChatModelProviders.ANTHROPIC]: AnthropicModelResponse;
   [ChatModelProviders.MISTRAL]: MistralModelResponse;
@@ -356,19 +357,20 @@ export interface ProviderResponseMap {
   [ChatModelProviders.XAI]: XAIModelResponse;
   [ChatModelProviders.OPENROUTERAI]: OpenRouterAIModelResponse;
   [ChatModelProviders.SILICONFLOW]: SiliconFlowModelResponse;
-  [ChatModelProviders.COPILOT_PLUS]: null;
+  [ChatModelProviders.OLLAMA]: null;
+  [ChatModelProviders.LM_STUDIO]: null;
   [ChatModelProviders.AZURE_OPENAI]: null;
   [ChatModelProviders.AMAZON_BEDROCK]: unknown;
 }
 
 // Adapter type definition - converts provider-specific models to standard format
-export type ModelAdapter<T extends SettingKeyProviders> = (
+export type ModelAdapter<T extends keyof ProviderResponseMap> = (
   data: ProviderResponseMap[T]
 ) => StandardModel[];
 
 // Create adapter function type
 export type ProviderModelAdapters = {
-  [K in SettingKeyProviders]?: ModelAdapter<K>;
+  [K in keyof ProviderResponseMap]?: ModelAdapter<K>;
 };
 
 /**
@@ -456,7 +458,7 @@ export const providerAdapters: ProviderModelAdapters = {
  * Default model adapter - handles unknown provider or format model data
  * Attempts to detect common data structure patterns and extract relevant information
  */
-export const getDefaultModelAdapter = (provider: SettingKeyProviders) => {
+export const getDefaultModelAdapter = (provider: ChatModelProviders) => {
   return (data: any): StandardModel[] => {
     // Try to detect common data structure patterns
     if (data.data && Array.isArray(data.data)) {
@@ -486,14 +488,15 @@ export const getDefaultModelAdapter = (provider: SettingKeyProviders) => {
  * Get adapter function
  * Uses provider-specific adapter if available, otherwise falls back to default adapter
  */
-export const getModelAdapter = (provider: SettingKeyProviders) => {
-  return providerAdapters[provider] || getDefaultModelAdapter(provider);
+export const getModelAdapter = (provider: ChatModelProviders) => {
+  const adapter = providerAdapters[provider as keyof ProviderResponseMap];
+  return adapter || getDefaultModelAdapter(provider);
 };
 
 /**
  * Parse model data and convert to standard format
  */
-export const parseModelsResponse = (provider: SettingKeyProviders, data: any): StandardModel[] => {
+export const parseModelsResponse = (provider: ChatModelProviders, data: any): StandardModel[] => {
   const adapter = getModelAdapter(provider);
   try {
     return adapter(data);

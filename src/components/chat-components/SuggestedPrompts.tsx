@@ -7,57 +7,57 @@ import { useSettingsValue } from "@/settings/model";
 import { PlusCircle, TriangleAlert } from "lucide-react";
 import React, { useMemo } from "react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useI18n, TranslationKey } from "@/i18n";
 
 interface NotePrompt {
-  title: string;
-  prompts: string[];
+  titleKey: TranslationKey;
+  promptKeys: TranslationKey[];
 }
 
 const SUGGESTED_PROMPTS: Record<string, NotePrompt> = {
   activeNote: {
-    title: "Active Note Insights",
-    prompts: [
-      `Provide three follow-up questions worded as if I'm asking you based on {activeNote}?`,
-      `What key questions does {activeNote} answer?`,
-      `Give me a quick recap of {activeNote} in two sentences.`,
+    titleKey: "chat.suggested.category.active",
+    promptKeys: [
+      "chat.suggested.prompt.active.1",
+      "chat.suggested.prompt.active.2",
+      "chat.suggested.prompt.active.3",
     ],
   },
   quoteNote: {
-    title: "Note Link Chat",
-    prompts: [
-      `Based on [[<note>]], what improvements should we focus on next?`,
-      `Summarize the key points from [[<note>]].`,
-      `Summarize the recent updates from [[<note>]].`,
-      `Roast my writing in [[<note>]] and give concrete actionable feedback`,
+    titleKey: "chat.suggested.category.noteLink",
+    promptKeys: [
+      "chat.suggested.prompt.note.1",
+      "chat.suggested.prompt.note.2",
+      "chat.suggested.prompt.note.3",
+      "chat.suggested.prompt.note.4",
     ],
   },
   fun: {
-    title: "Test LLM",
-    prompts: [
-      `9.11 and 9.8, which is bigger?`,
-      `What's the longest river in the world?`,
-      `If a lead ball and a feather are dropped simultaneously from the same height, which will reach the ground first?`,
+    titleKey: "chat.suggested.category.fun",
+    promptKeys: [
+      "chat.suggested.prompt.fun.1",
+      "chat.suggested.prompt.fun.2",
+      "chat.suggested.prompt.fun.3",
     ],
   },
   qaVault: {
-    title: "Vault Q&A",
-    prompts: [
-      `What insights can I gather about <topic> from my notes?`,
-      `Explain <concept> based on my stored notes.`,
-      `Highlight important details on <topic> from my notes.`,
-      `Based on my notes on <topic>, what is the question that I should be asking, but am not?`,
+    titleKey: "chat.suggested.category.qa",
+    promptKeys: [
+      "chat.suggested.prompt.qa.1",
+      "chat.suggested.prompt.qa.2",
+      "chat.suggested.prompt.qa.3",
+      "chat.suggested.prompt.qa.4",
     ],
   },
-  copilotPlus: {
-    title: "Copilot Plus",
-    prompts: [
-      `Give me a recap of last week @vault`,
-      `What are the key takeaways from my notes on <topic> @vault`,
-      `Summarize <url> in under 10 bullet points`,
-      `Summarize <youtube_video_url>`,
-      `@websearch what are most recent updates in the AI industry`,
-      `What are the key insights from this paper <arxiv_url>`,
-      `What new methods are proposed in this paper [[<note_with_embedded_pdf>]]`,
+  advancedAgent: {
+    titleKey: "chat.suggested.category.advanced",
+    promptKeys: [
+      "chat.suggested.prompt.advanced.1",
+      "chat.suggested.prompt.advanced.2",
+      "chat.suggested.prompt.advanced.3",
+      "chat.suggested.prompt.advanced.4",
+      "chat.suggested.prompt.advanced.5",
+      "chat.suggested.prompt.advanced.6",
     ],
   },
 };
@@ -65,23 +65,27 @@ const SUGGESTED_PROMPTS: Record<string, NotePrompt> = {
 const PROMPT_KEYS: Record<ChainType, Array<keyof typeof SUGGESTED_PROMPTS>> = {
   [ChainType.LLM_CHAIN]: ["activeNote", "quoteNote", "fun"],
   [ChainType.VAULT_QA_CHAIN]: ["qaVault", "qaVault", "quoteNote"],
-  [ChainType.COPILOT_PLUS_CHAIN]: ["copilotPlus", "copilotPlus", "copilotPlus"],
-  [ChainType.PROJECT_CHAIN]: ["copilotPlus", "copilotPlus", "copilotPlus"],
+  [ChainType.ADVANCED_CHAIN]: ["advancedAgent", "advancedAgent", "advancedAgent"],
+  [ChainType.PROJECT_CHAIN]: ["advancedAgent", "advancedAgent", "advancedAgent"],
 };
 
-function getRandomPrompt(chainType: ChainType = ChainType.LLM_CHAIN) {
+function getRandomPrompt(
+  chainType: ChainType = ChainType.LLM_CHAIN,
+  translateKey: (key: TranslationKey) => string
+) {
   const keys = PROMPT_KEYS[chainType] || PROMPT_KEYS[ChainType.LLM_CHAIN];
 
   // For repeated keys, shuffle once and take multiple items
-  const shuffledPrompts: Record<string, string[]> = {};
+  const shuffledPrompts: Record<string, TranslationKey[]> = {};
 
   return keys.map((key) => {
     if (!shuffledPrompts[key]) {
-      shuffledPrompts[key] = [...SUGGESTED_PROMPTS[key].prompts].sort(() => Math.random() - 0.5);
+      shuffledPrompts[key] = [...SUGGESTED_PROMPTS[key].promptKeys].sort(() => Math.random() - 0.5);
     }
+    const promptKey = shuffledPrompts[key].pop() || SUGGESTED_PROMPTS[key].promptKeys[0];
     return {
-      title: SUGGESTED_PROMPTS[key].title,
-      text: shuffledPrompts[key].pop() || SUGGESTED_PROMPTS[key].prompts[0],
+      title: translateKey(SUGGESTED_PROMPTS[key].titleKey),
+      text: translateKey(promptKey),
     };
   });
 }
@@ -92,7 +96,8 @@ interface SuggestedPromptsProps {
 
 export const SuggestedPrompts: React.FC<SuggestedPromptsProps> = ({ onClick }) => {
   const [chainType] = useChainType();
-  const prompts = useMemo(() => getRandomPrompt(chainType), [chainType]);
+  const { t } = useI18n();
+  const prompts = useMemo(() => getRandomPrompt(chainType, t), [chainType, t]);
   const settings = useSettingsValue();
   const indexVaultToVectorStore = settings.indexVaultToVectorStore as VAULT_VECTOR_STORE_STRATEGY;
 
@@ -100,7 +105,7 @@ export const SuggestedPrompts: React.FC<SuggestedPromptsProps> = ({ onClick }) =
     <div className="tw-flex tw-flex-col tw-gap-4">
       <Card className="tw-w-full tw-bg-transparent">
         <CardHeader className="tw-px-2">
-          <CardTitle>Suggested Prompts</CardTitle>
+          <CardTitle>{t("chat.suggested.title")}</CardTitle>
         </CardHeader>
         <CardContent className="tw-p-2 tw-pt-0">
           <div className="tw-flex tw-flex-col tw-gap-2">
@@ -125,7 +130,7 @@ export const SuggestedPrompts: React.FC<SuggestedPromptsProps> = ({ onClick }) =
                         <PlusCircle className="tw-size-4" />
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent>Add to Chat</TooltipContent>
+                    <TooltipContent>{t("chat.suggested.buttonTooltip")}</TooltipContent>
                   </Tooltip>
                 </div>
               </div>
@@ -135,19 +140,15 @@ export const SuggestedPrompts: React.FC<SuggestedPromptsProps> = ({ onClick }) =
       </Card>
       {chainType === ChainType.VAULT_QA_CHAIN && (
         <div className="tw-rounded-md tw-border tw-border-solid tw-border-border tw-p-2 tw-text-sm">
-          Please note that this is a retrieval-based QA. Questions should contain keywords and
-          concepts that exist literally in your vault
+          {t("chat.suggested.notice.qa")}
         </div>
       )}
       {chainType === ChainType.VAULT_QA_CHAIN &&
         indexVaultToVectorStore === VAULT_VECTOR_STORE_STRATEGY.NEVER && (
           <div className="tw-rounded-md tw-border tw-border-solid tw-border-border tw-p-2 tw-text-sm">
-            <div>
-              <TriangleAlert className="tw-size-4" /> Your auto-index strategy is set to{" "}
-              <b>NEVER</b>. Before proceeding, click the{" "}
-              <span className="tw-text-accent">Refresh Index</span> button below or run the{" "}
-              <span className="tw-text-accent">Copilot command: Index (refresh) vault for QA</span>{" "}
-              to update the index.
+            <div className="tw-flex tw-items-start tw-gap-2">
+              <TriangleAlert className="tw-size-4 tw-text-warning" />
+              <span>{t("chat.suggested.notice.vector")}</span>
             </div>
           </div>
         )}

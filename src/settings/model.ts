@@ -1,21 +1,18 @@
-import { CustomModel, ProjectConfig } from "@/aiParams";
+import { CustomModel, ModelProvider, ProjectConfig } from "@/aiParams";
 import { atom, createStore, useAtomValue } from "jotai";
 import { v4 as uuidv4 } from "uuid";
 import { UserMemoryManager } from "@/memory/UserMemoryManager";
 
-import { AcceptKeyOption } from "@/autocomplete/codemirrorIntegration";
 import { type ChainType } from "@/chainFactory";
 import {
-  BUILTIN_CHAT_MODELS,
-  BUILTIN_EMBEDDING_MODELS,
   COPILOT_FOLDER_ROOT,
   DEFAULT_OPEN_AREA,
   DEFAULT_QA_EXCLUSIONS_SETTING,
   DEFAULT_SETTINGS,
   DEFAULT_SYSTEM_PROMPT,
-  EmbeddingModelProviders,
   SEND_SHORTCUT,
 } from "@/constants";
+import { DEFAULT_LANGUAGE, Language } from "@/i18n/lang";
 import { logInfo } from "@/logger";
 
 /**
@@ -49,25 +46,8 @@ export interface LegacyCommandSettings {
 
 export interface CopilotSettings {
   userId: string;
-  plusLicenseKey: string;
-  openAIApiKey: string;
-  openAIOrgId: string;
-  huggingfaceApiKey: string;
-  cohereApiKey: string;
-  anthropicApiKey: string;
-  azureOpenAIApiKey: string;
-  azureOpenAIApiInstanceName: string;
-  azureOpenAIApiDeploymentName: string;
-  azureOpenAIApiVersion: string;
-  azureOpenAIApiEmbeddingDeploymentName: string;
-  googleApiKey: string;
-  openRouterAiApiKey: string;
-  xaiApiKey: string;
-  mistralApiKey: string;
-  deepseekApiKey: string;
-  amazonBedrockApiKey: string;
-  amazonBedrockRegion: string;
-  siliconflowApiKey: string;
+  /** List of configured model providers */
+  providers: Array<ModelProvider>;
   defaultChainType: ChainType;
   defaultModelKey: string;
   embeddingModelKey: string;
@@ -77,8 +57,6 @@ export interface CopilotSettings {
   lastDismissedVersion: string | null;
   // Do not use this directly, use getSystemPrompt() instead
   userSystemPrompt: string;
-  openAIProxyBaseUrl: string;
-  openAIEmbeddingProxyBaseUrl: string;
   stream: boolean;
   defaultSaveFolder: string;
   defaultConversationTag: string;
@@ -99,7 +77,6 @@ export interface CopilotSettings {
   maxSourceChunks: number;
   qaExclusions: string;
   qaInclusions: string;
-  groqApiKey: string;
   activeModels: Array<CustomModel>;
   activeEmbeddingModels: Array<CustomModel>;
   promptUsageTimestamps: Record<string, number>;
@@ -113,13 +90,8 @@ export interface CopilotSettings {
   showRelevantNotes: boolean;
   numPartitions: number;
   defaultConversationNoteName: string;
-  // undefined means never checked
-  isPlusUser: boolean | undefined;
   inlineEditCommands: LegacyCommandSettings[] | undefined;
-  enableAutocomplete: boolean;
-  autocompleteAcceptKey: AcceptKeyOption;
   allowAdditionalContext: boolean;
-  enableWordCompletion: boolean;
   projectList: Array<ProjectConfig>;
   passMarkdownImages: boolean;
   enableAutonomousAgent: boolean;
@@ -157,6 +129,8 @@ export interface CopilotSettings {
   quickCommandIncludeNoteContext: boolean;
   /** Automatically add text selections to chat context */
   autoIncludeTextSelection: boolean;
+  /** UI language */
+  language: Language;
 }
 
 export const settingsStore = createStore();
@@ -166,11 +140,9 @@ export const settingsAtom = atom<CopilotSettings>(DEFAULT_SETTINGS);
  * Sets the settings in the atom.
  */
 export function setSettings(settings: Partial<CopilotSettings>) {
-  const newSettings = mergeAllActiveModelsWithCoreModels({ ...getSettings(), ...settings });
-
-  // TODO: Force autocomplete features off until user-customizable prompts return
-  newSettings.enableAutocomplete = false;
-  newSettings.enableWordCompletion = false;
+  // In the new model-centric architecture, we no longer auto-merge built-in models
+  // Users have full control over their model list
+  const newSettings = { ...getSettings(), ...settings };
   settingsStore.set(settingsAtom, newSettings);
 }
 
@@ -230,12 +202,13 @@ export function getSettings(): Readonly<CopilotSettings> {
  * Resets the settings to the default values.
  */
 export function resetSettings(): void {
-  const defaultSettingsWithBuiltIns = {
+  // Start with empty model arrays in the new model-centric architecture
+  const defaultSettingsEmpty = {
     ...DEFAULT_SETTINGS,
-    activeModels: BUILTIN_CHAT_MODELS.map((model) => ({ ...model, enabled: true })),
-    activeEmbeddingModels: BUILTIN_EMBEDDING_MODELS.map((model) => ({ ...model, enabled: true })),
+    activeModels: [],
+    activeEmbeddingModels: [],
   };
-  setSettings(defaultSettingsWithBuiltIns);
+  setSettings(defaultSettingsEmpty);
 }
 
 /**
@@ -274,20 +247,14 @@ export function sanitizeSettings(settings: CopilotSettings): CopilotSettings {
     settingsToSanitize.userId = uuidv4();
   }
 
-  // fix: Maintain consistency between EmbeddingModelProviders.AZURE_OPENAI and ChatModelProviders.AZURE_OPENAI,
-  // where it was 'azure_openai' before EmbeddingModelProviders.AZURE_OPENAI.
+  // Ensure activeEmbeddingModels exists
   if (!settingsToSanitize.activeEmbeddingModels) {
-    settingsToSanitize.activeEmbeddingModels = BUILTIN_EMBEDDING_MODELS.map((model) => ({
-      ...model,
-      enabled: true,
-    }));
-  } else {
-    settingsToSanitize.activeEmbeddingModels = settingsToSanitize.activeEmbeddingModels.map((m) => {
-      return {
-        ...m,
-        provider: m.provider === "azure_openai" ? EmbeddingModelProviders.AZURE_OPENAI : m.provider,
-      };
-    });
+    settingsToSanitize.activeEmbeddingModels = [];
+  }
+
+  // Ensure providers exists
+  if (!settingsToSanitize.providers) {
+    settingsToSanitize.providers = [];
   }
 
   const sanitizedSettings: CopilotSettings = { ...settingsToSanitize };
@@ -348,14 +315,7 @@ export function sanitizeSettings(settings: CopilotSettings): CopilotSettings {
     sanitizedSettings.allowAdditionalContext = DEFAULT_SETTINGS.allowAdditionalContext;
   }
 
-  // Ensure enableWordCompletion has a default value
-  if (typeof sanitizedSettings.enableWordCompletion !== "boolean") {
-    sanitizedSettings.enableWordCompletion = DEFAULT_SETTINGS.enableWordCompletion;
-  }
-
   // TODO: Force autocomplete features off until user-customizable prompts return
-  sanitizedSettings.enableAutocomplete = false;
-  sanitizedSettings.enableWordCompletion = false;
 
   // Ensure autonomousAgentMaxIterations has a valid value
   const autonomousAgentMaxIterations = Number(settingsToSanitize.autonomousAgentMaxIterations);
@@ -425,6 +385,10 @@ export function sanitizeSettings(settings: CopilotSettings): CopilotSettings {
     sanitizedSettings.autoIncludeTextSelection = DEFAULT_SETTINGS.autoIncludeTextSelection;
   }
 
+  if (!sanitizedSettings.language) {
+    sanitizedSettings.language = DEFAULT_LANGUAGE;
+  }
+
   // Ensure defaultSendShortcut has a valid value
   if (!Object.values(SEND_SHORTCUT).includes(sanitizedSettings.defaultSendShortcut)) {
     sanitizedSettings.defaultSendShortcut = DEFAULT_SETTINGS.defaultSendShortcut;
@@ -476,62 +440,4 @@ export async function getSystemPromptWithMemory(
   return `${memoryPrompt}\n${systemPrompt}`;
 }
 
-function mergeAllActiveModelsWithCoreModels(settings: CopilotSettings): CopilotSettings {
-  settings.activeModels = mergeActiveModels(settings.activeModels, BUILTIN_CHAT_MODELS);
-  settings.activeEmbeddingModels = mergeActiveModels(
-    settings.activeEmbeddingModels,
-    BUILTIN_EMBEDDING_MODELS
-  );
-  return settings;
-}
-
-/**
- * Get a unique model key from a CustomModel instance
- * Format: modelName|provider
- */
-export function getModelKeyFromModel(model: CustomModel): string {
-  return `${model.name}|${model.provider}`;
-}
-
-function mergeActiveModels(
-  existingActiveModels: CustomModel[],
-  builtInModels: CustomModel[]
-): CustomModel[] {
-  const modelMap = new Map<string, CustomModel>();
-
-  // Add core models to the map first
-  builtInModels
-    .filter((model) => model.core)
-    .forEach((model) => {
-      modelMap.set(getModelKeyFromModel(model), { ...model });
-    });
-
-  // Add or update existing models in the map
-  existingActiveModels.forEach((model) => {
-    const key = getModelKeyFromModel(model);
-    const existingModel = modelMap.get(key);
-    if (existingModel) {
-      // If it's a built-in model, preserve all built-in properties
-      const builtInModel = builtInModels.find(
-        (m) => m.name === model.name && m.provider === model.provider
-      );
-      if (builtInModel) {
-        modelMap.set(key, {
-          ...builtInModel,
-          ...model,
-          isBuiltIn: true,
-          believerExclusive: builtInModel.believerExclusive,
-        });
-      } else {
-        modelMap.set(key, {
-          ...model,
-          isBuiltIn: existingModel.isBuiltIn,
-        });
-      }
-    } else {
-      modelMap.set(key, model);
-    }
-  });
-
-  return Array.from(modelMap.values());
-}
+// Removed mergeActiveModels function - no longer needed in new provider-centric architecture

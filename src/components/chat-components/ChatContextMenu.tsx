@@ -14,7 +14,7 @@ import { ChainType } from "@/chainFactory";
 import { Separator } from "@/components/ui/separator";
 import { useChainType } from "@/aiParams";
 import { useProjectContextStatus } from "@/hooks/useProjectContextStatus";
-import { isPlusChain, openFileInWorkspace } from "@/utils";
+import { isAdvancedChain, openFileInWorkspace } from "@/utils";
 import { AtMentionTypeahead } from "./AtMentionTypeahead";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
@@ -78,7 +78,7 @@ export const ChatContextMenu: React.FC<ChatContextMenuProps> = ({
   const contextStatus = useProjectContextStatus();
   const [showTypeahead, setShowTypeahead] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
-  const isCopilotPlus = isPlusChain(currentChain);
+  const advancedModeEnabled = isAdvancedChain(currentChain);
 
   const handleTypeaheadClose = () => {
     setShowTypeahead(false);
@@ -154,7 +154,7 @@ export const ChatContextMenu: React.FC<ChatContextMenuProps> = ({
               isOpen={showTypeahead}
               onClose={handleTypeaheadClose}
               onSelect={handleTypeaheadSelect}
-              isCopilotPlus={isCopilotPlus}
+              advancedModeEnabled={advancedModeEnabled}
               currentActiveFile={currentActiveFile}
             />
           </PopoverContent>

@@ -1,5 +1,5 @@
 import React from "react";
-import { Database, Globe, Pen, Sparkles, Brain, Wrench, Check } from "lucide-react";
+import { Database, Pen, Sparkles, Brain, Wrench, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
@@ -11,14 +11,13 @@ import {
 import { ChainType } from "@/chainFactory";
 import { cn } from "@/lib/utils";
 import { updateSetting } from "@/settings/model";
-import { isPlusChain } from "@/utils";
+import { isAdvancedChain } from "@/utils";
+import { useI18n } from "@/i18n";
 
 interface ChatToolControlsProps {
   // Tool toggle states
   vaultToggle: boolean;
   setVaultToggle: (value: boolean) => void;
-  webToggle: boolean;
-  setWebToggle: (value: boolean) => void;
   composerToggle: boolean;
   setComposerToggle: (value: boolean) => void;
   autonomousAgentToggle: boolean;
@@ -26,7 +25,6 @@ interface ChatToolControlsProps {
 
   // Toggle-off callbacks for pill removal
   onVaultToggleOff?: () => void;
-  onWebToggleOff?: () => void;
   onComposerToggleOff?: () => void;
 
   // Other props
@@ -36,19 +34,17 @@ interface ChatToolControlsProps {
 const ChatToolControls: React.FC<ChatToolControlsProps> = ({
   vaultToggle,
   setVaultToggle,
-  webToggle,
-  setWebToggle,
   composerToggle,
   setComposerToggle,
   autonomousAgentToggle,
   setAutonomousAgentToggle,
   onVaultToggleOff,
-  onWebToggleOff,
   onComposerToggleOff,
   currentChain,
 }) => {
-  const isCopilotPlus = isPlusChain(currentChain);
-  const showAutonomousAgent = isCopilotPlus && currentChain !== ChainType.PROJECT_CHAIN;
+  const { t } = useI18n();
+  const isAdvancedMode = isAdvancedChain(currentChain);
+  const showAutonomousAgent = isAdvancedMode && currentChain !== ChainType.PROJECT_CHAIN;
 
   const handleAutonomousAgentToggle = () => {
     const newValue = !autonomousAgentToggle;
@@ -65,15 +61,6 @@ const ChatToolControls: React.FC<ChatToolControlsProps> = ({
     }
   };
 
-  const handleWebToggle = () => {
-    const newValue = !webToggle;
-    setWebToggle(newValue);
-    // If toggling off, remove pills
-    if (!newValue && onWebToggleOff) {
-      onWebToggleOff();
-    }
-  };
-
   const handleComposerToggle = () => {
     const newValue = !composerToggle;
     setComposerToggle(newValue);
@@ -83,8 +70,8 @@ const ChatToolControls: React.FC<ChatToolControlsProps> = ({
     }
   };
 
-  // If not Copilot Plus, don't show any tools
-  if (!isCopilotPlus) {
+  // Only show controls in advanced modes
+  if (!isAdvancedMode) {
     return null;
   }
 
@@ -92,7 +79,7 @@ const ChatToolControls: React.FC<ChatToolControlsProps> = ({
     <TooltipProvider delayDuration={0}>
       {/* Desktop view - show all icons when container is wide enough */}
       <div className="tw-hidden tw-items-center tw-gap-1.5 @[420px]/chat-input:tw-flex">
-        {/* Autonomous Agent button - only show in Copilot Plus mode and NOT in Projects mode */}
+        {/* Autonomous Agent button - only show in advanced mode and NOT in Projects mode */}
         {showAutonomousAgent && (
           <Tooltip>
             <TooltipTrigger asChild>
@@ -109,12 +96,12 @@ const ChatToolControls: React.FC<ChatToolControlsProps> = ({
               </Button>
             </TooltipTrigger>
             <TooltipContent className="tw-px-1 tw-py-0.5">
-              Toggle autonomous agent mode
+              {t("chat.tool.agentTooltip")}
             </TooltipContent>
           </Tooltip>
         )}
 
-        {/* Toggle buttons for vault, web search, and composer - show when Autonomous Agent is off */}
+        {/* Toggle buttons for vault search and composer - show when Autonomous Agent is off */}
         {!autonomousAgentToggle && (
           <>
             <Tooltip>
@@ -131,23 +118,9 @@ const ChatToolControls: React.FC<ChatToolControlsProps> = ({
                   <Database className="tw-size-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent className="tw-px-1 tw-py-0.5">Toggle vault search</TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost2"
-                  size="fit"
-                  onClick={handleWebToggle}
-                  className={cn(
-                    "tw-text-muted hover:tw-text-accent",
-                    webToggle && "tw-text-accent tw-bg-accent/10"
-                  )}
-                >
-                  <Globe className="tw-size-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent className="tw-px-1 tw-py-0.5">Toggle web search</TooltipContent>
+              <TooltipContent className="tw-px-1 tw-py-0.5">
+                {t("chat.tool.vaultTooltip")}
+              </TooltipContent>
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -167,7 +140,7 @@ const ChatToolControls: React.FC<ChatToolControlsProps> = ({
                 </Button>
               </TooltipTrigger>
               <TooltipContent className="tw-px-1 tw-py-0.5">
-                Toggle composer (note editing)
+                {t("chat.tool.composerTooltip")}
               </TooltipContent>
             </Tooltip>
           </>
@@ -183,7 +156,7 @@ const ChatToolControls: React.FC<ChatToolControlsProps> = ({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="tw-w-56">
-            {/* Autonomous Agent option - only show in Copilot Plus mode and NOT in Projects mode */}
+            {/* Autonomous Agent option - only show in advanced mode and NOT in Projects mode */}
             {showAutonomousAgent && (
               <DropdownMenuItem
                 onClick={handleAutonomousAgentToggle}
@@ -191,7 +164,7 @@ const ChatToolControls: React.FC<ChatToolControlsProps> = ({
               >
                 <div className="tw-flex tw-items-center tw-gap-2">
                   <Brain className="tw-size-4" />
-                  <span>Autonomous Agent</span>
+                  <span>{t("chat.tool.agent")}</span>
                 </div>
                 {autonomousAgentToggle && <Check className="tw-size-4" />}
               </DropdownMenuItem>
@@ -206,19 +179,9 @@ const ChatToolControls: React.FC<ChatToolControlsProps> = ({
                 >
                   <div className="tw-flex tw-items-center tw-gap-2">
                     <Database className="tw-size-4" />
-                    <span>Vault Search</span>
+                    <span>{t("chat.tool.vault")}</span>
                   </div>
                   {vaultToggle && <Check className="tw-size-4" />}
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={handleWebToggle}
-                  className="tw-flex tw-items-center tw-justify-between"
-                >
-                  <div className="tw-flex tw-items-center tw-gap-2">
-                    <Globe className="tw-size-4" />
-                    <span>Web Search</span>
-                  </div>
-                  {webToggle && <Check className="tw-size-4" />}
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={handleComposerToggle}
@@ -229,7 +192,7 @@ const ChatToolControls: React.FC<ChatToolControlsProps> = ({
                       <Sparkles className="tw-size-2" />
                       <Pen className="tw-size-3" />
                     </span>
-                    <span>Composer</span>
+                    <span>{t("chat.tool.composer")}</span>
                   </div>
                   {composerToggle && <Check className="tw-size-4" />}
                 </DropdownMenuItem>
@@ -245,16 +208,7 @@ const ChatToolControls: React.FC<ChatToolControlsProps> = ({
                 >
                   <div className="tw-flex tw-items-center tw-gap-2">
                     <Database className="tw-size-4" />
-                    <span>Vault Search</span>
-                  </div>
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  disabled
-                  className="tw-flex tw-items-center tw-justify-between tw-opacity-50"
-                >
-                  <div className="tw-flex tw-items-center tw-gap-2">
-                    <Globe className="tw-size-4" />
-                    <span>Web Search</span>
+                    <span>{t("chat.tool.vault")}</span>
                   </div>
                 </DropdownMenuItem>
                 <DropdownMenuItem
@@ -266,7 +220,7 @@ const ChatToolControls: React.FC<ChatToolControlsProps> = ({
                       <Sparkles className="tw-size-2" />
                       <Pen className="tw-size-3" />
                     </span>
-                    <span>Composer</span>
+                    <span>{t("chat.tool.composer")}</span>
                   </div>
                 </DropdownMenuItem>
               </>

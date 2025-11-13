@@ -1,7 +1,4 @@
 import { ImageProcessor } from "@/imageProcessing/imageProcessor";
-import { BrevilabsClient, Url4llmResponse } from "@/LLMProviders/brevilabsClient";
-import { err2String, isYoutubeUrl } from "@/utils";
-import { logError } from "@/logger";
 
 export interface MentionData {
   type: string;
@@ -13,11 +10,9 @@ export interface MentionData {
 export class Mention {
   private static instance: Mention;
   private mentions: Map<string, MentionData>;
-  private brevilabsClient: BrevilabsClient;
 
   private constructor() {
     this.mentions = new Map();
-    this.brevilabsClient = BrevilabsClient.getInstance();
   }
 
   static getInstance(): Mention {
@@ -42,25 +37,12 @@ export class Mention {
       .filter((url, index, self) => self.indexOf(url) === index);
   }
 
-  async processUrl(url: string): Promise<Url4llmResponse & { error?: string }> {
-    try {
-      return await this.brevilabsClient.url4llm(url);
-    } catch (error) {
-      const msg = err2String(error);
-      logError(`Error processing URL ${url}: ${msg}`);
-      return { response: url, elapsed_time_ms: 0, error: msg };
-    }
-  }
-
-  async processYoutubeUrl(url: string): Promise<{ transcript: string; error?: string }> {
-    try {
-      const response = await this.brevilabsClient.youtube4llm(url);
-      return { transcript: response.response.transcript };
-    } catch (error) {
-      const msg = err2String(error);
-      logError(`Error processing YouTube URL ${url}: ${msg}`);
-      return { transcript: "", error: msg };
-    }
+  async processUrl(
+    url: string
+  ): Promise<{ response: string; elapsed_time_ms: number; error?: string }> {
+    const message =
+      "Remote URL processing has been disabled. Please copy relevant information into a note instead.";
+    return { response: url, elapsed_time_ms: 0, error: message };
   }
 
   /**
@@ -91,27 +73,13 @@ export class Mention {
         return { type: "image", url };
       }
 
-      // Check if it's a YouTube URL
-      if (isYoutubeUrl(url)) {
-        if (!this.mentions.has(url)) {
-          const processed = await this.processYoutubeUrl(url);
-          this.mentions.set(url, {
-            type: "youtube",
-            original: url,
-            processed: processed.transcript,
-            error: processed.error,
-          });
-        }
-        return { type: "youtube", data: this.mentions.get(url) };
-      }
-
       // Regular URL
       if (!this.mentions.has(url)) {
         const processed = await this.processUrl(url);
         this.mentions.set(url, {
           type: "url",
           original: url,
-          processed: processed.response,
+          processed: "",
           error: processed.error,
         });
       }
@@ -131,11 +99,7 @@ export class Mention {
       if (!urlData) return;
 
       if (urlData.processed) {
-        if (result.type === "youtube") {
-          urlContext += `\n\n<youtube_transcript>\n<url>${urlData.original}</url>\n<transcript>\n${urlData.processed}\n</transcript>\n</youtube_transcript>`;
-        } else {
-          urlContext += `\n\n<url_content>\n<url>${urlData.original}</url>\n<content>\n${urlData.processed}\n</content>\n</url_content>`;
-        }
+        urlContext += `\n\n<url_content>\n<url>${urlData.original}</url>\n<content>\n${urlData.processed}\n</content>\n</url_content>`;
       }
 
       if (urlData.error) {

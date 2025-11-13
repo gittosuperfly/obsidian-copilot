@@ -43,12 +43,6 @@ jest.mock("crypto-js", () => ({
   })),
 }));
 
-// Mock plusUtils
-jest.mock("@/plusUtils", () => ({
-  useIsPlusUser: jest.fn(),
-  navigateToPlusPage: jest.fn(),
-}));
-
 // Mock FileCache
 jest.mock("@/cache/fileCache", () => {
   return {
@@ -178,8 +172,6 @@ describe("ProjectContextCache", () => {
     const contextCache = {
       markdownContext: "",
       markdownNeedsReload: true,
-      webContexts: {},
-      youtubeContexts: {},
       fileContexts: {},
       timestamp: Date.now(),
     };
@@ -218,8 +210,6 @@ describe("ProjectContextCache", () => {
     const contextCache = {
       markdownContext: "",
       markdownNeedsReload: true,
-      webContexts: {},
-      youtubeContexts: {},
       fileContexts: {},
       timestamp: Date.now(),
     };
@@ -268,119 +258,11 @@ describe("ProjectContextCache", () => {
     });
   });
 
-  test("should update and remove web URLs", async () => {
-    // Create initial context cache
-    const initialCache = {
-      markdownContext: "",
-      markdownNeedsReload: true,
-      webContexts: {},
-      youtubeContexts: {},
-      fileContexts: {},
-      timestamp: Date.now(),
-    };
-
-    // Mock vault to return our initial cache
-    mockApp.vault.adapter.exists.mockResolvedValue(true);
-    mockApp.vault.adapter.read.mockResolvedValue(JSON.stringify(initialCache));
-
-    // Update Web URL
-    const testUrl = "https://example.com/test";
-    const testContent = "Example web content";
-    await projectContextCache.updateWebUrl(mockProject, testUrl, testContent);
-
-    // Verify write was called
-    expect(mockApp.vault.adapter.write).toHaveBeenCalled();
-
-    // Reset mock to return the updated cache
-    const updatedCache = {
-      ...initialCache,
-      webContexts: { [testUrl]: testContent },
-    };
-    mockApp.vault.adapter.read.mockResolvedValue(JSON.stringify(updatedCache));
-
-    // Add another URL
-    const testUrl2 = "https://example.com/test2";
-    const testContent2 = "Another example";
-    await projectContextCache.updateWebUrl(mockProject, testUrl2, testContent2);
-
-    // Remove URL
-    const urlsToRemove = [testUrl];
-    await projectContextCache.removeWebUrls(mockProject, urlsToRemove);
-
-    // Final cache should only contain the second URL
-    const finalCache = {
-      ...initialCache,
-      webContexts: { [testUrl2]: testContent2 },
-    };
-    mockApp.vault.adapter.read.mockResolvedValue(JSON.stringify(finalCache));
-
-    // Get cache check results
-    const resultCache = await projectContextCache.get(mockProject);
-    expect(resultCache).toBeDefined();
-    expect(resultCache?.webContexts[testUrl]).toBeUndefined();
-    expect(resultCache?.webContexts[testUrl2]).toBe(testContent2);
-  });
-
-  test("should update and remove YouTube URLs", async () => {
-    // Create initial context cache
-    const initialCache = {
-      markdownContext: "",
-      markdownNeedsReload: true,
-      webContexts: {},
-      youtubeContexts: {},
-      fileContexts: {},
-      timestamp: Date.now(),
-    };
-
-    // Mock vault to return our initial cache
-    mockApp.vault.adapter.exists.mockResolvedValue(true);
-    mockApp.vault.adapter.read.mockResolvedValue(JSON.stringify(initialCache));
-
-    // Update YouTube URL
-    const testYoutubeUrl = "https://youtube.com/watch?v=test123";
-    const testYoutubeContent = "Test YouTube transcript";
-    await projectContextCache.updateYoutubeUrl(mockProject, testYoutubeUrl, testYoutubeContent);
-
-    // Verify write was called
-    expect(mockApp.vault.adapter.write).toHaveBeenCalled();
-
-    // Reset mock to return the updated cache
-    const updatedCache = {
-      ...initialCache,
-      youtubeContexts: { [testYoutubeUrl]: testYoutubeContent },
-    };
-    mockApp.vault.adapter.read.mockResolvedValue(JSON.stringify(updatedCache));
-
-    // Add another URL
-    const testYoutubeUrl2 = "https://youtube.com/watch?v=test456";
-    const testYoutubeContent2 = "Another YouTube transcript";
-    await projectContextCache.updateYoutubeUrl(mockProject, testYoutubeUrl2, testYoutubeContent2);
-
-    // Remove URL
-    const urlsToRemove = [testYoutubeUrl];
-    await projectContextCache.removeYoutubeUrls(mockProject, urlsToRemove);
-
-    // Final cache should only contain the second URL
-    const finalCache = {
-      ...initialCache,
-      youtubeContexts: { [testYoutubeUrl2]: testYoutubeContent2 },
-    };
-    mockApp.vault.adapter.read.mockResolvedValue(JSON.stringify(finalCache));
-
-    // Get cache check results
-    const resultCache = await projectContextCache.get(mockProject);
-    expect(resultCache).toBeDefined();
-    expect(resultCache?.youtubeContexts[testYoutubeUrl]).toBeUndefined();
-    expect(resultCache?.youtubeContexts[testYoutubeUrl2]).toBe(testYoutubeContent2);
-  });
-
   test("should safely update cache with updateCacheSafely", async () => {
     // Create initial context cache
     const initialCache = {
       markdownContext: "Initial markdown content",
       markdownNeedsReload: false,
-      webContexts: {},
-      youtubeContexts: {},
       fileContexts: {},
       timestamp: Date.now(),
     };
@@ -414,8 +296,6 @@ describe("ProjectContextCache", () => {
     const initialCache = {
       markdownContext: "Initial markdown content",
       markdownNeedsReload: false,
-      webContexts: {},
-      youtubeContexts: {},
       fileContexts: {},
       timestamp: Date.now(),
     };
@@ -429,7 +309,6 @@ describe("ProjectContextCache", () => {
       // Simulate async operation
       await new Promise((resolve) => setTimeout(resolve, 10));
       cache.markdownContext = "Async updated content";
-      cache.webContexts = { "https://example.com": "Async web content" };
       return cache;
     };
 
@@ -443,7 +322,6 @@ describe("ProjectContextCache", () => {
     const writeCall = mockApp.vault.adapter.write.mock.calls[0];
     const writtenContent = JSON.parse(writeCall[1]);
     expect(writtenContent.markdownContext).toBe("Async updated content");
-    expect(writtenContent.webContexts["https://example.com"]).toBe("Async web content");
   });
 
   test("should handle skipIfEmpty parameter correctly in updateCacheSafely", async () => {
@@ -488,8 +366,6 @@ describe("ProjectContextCache", () => {
     const initialCache: ContextCache = {
       markdownContext: "Initial markdown content",
       markdownNeedsReload: false,
-      webContexts: {},
-      youtubeContexts: {},
       fileContexts: {},
       timestamp: Date.now(),
     };
@@ -516,39 +392,30 @@ describe("ProjectContextCache", () => {
       return cache;
     };
 
-    const updateWeb = (cache: any) => {
-      executionOrder.push(`web-${Date.now() - startTime}`);
-      cache.webContexts = { "https://example.com": "Web content" };
-      return cache;
-    };
-
-    const updateYoutube = (cache: any) => {
-      executionOrder.push(`youtube-${Date.now() - startTime}`);
-      cache.youtubeContexts = { "https://youtube.com/test": "YouTube content" };
+    const updateFileRefs = (cache: any) => {
+      executionOrder.push(`files-${Date.now() - startTime}`);
+      cache.fileContexts["temp.md"] = {
+        timestamp: Date.now(),
+        cacheKey: "temp-key",
+      };
       return cache;
     };
 
     // Execute concurrent updates
     await Promise.all([
       projectContextCache.updateCacheSafely(mockProject, updateMarkdown),
-      projectContextCache.updateCacheSafely(mockProject, updateWeb),
-      projectContextCache.updateCacheSafely(mockProject, updateYoutube),
+      projectContextCache.updateCacheSafely(mockProject, updateFileRefs),
     ]);
 
-    // Verify write was called three times
-    expect(mockApp.vault.adapter.write).toHaveBeenCalledTimes(3);
+    // Verify write was called twice
+    expect(mockApp.vault.adapter.write).toHaveBeenCalledTimes(2);
 
     // Verify that all update functions were executed
-    expect(executionOrder.length).toBe(3);
+    expect(executionOrder.length).toBe(2);
 
     // Verify all updates were applied to the final cache
     expect(currentCache.markdownContext).toBe("Updated markdown content");
-    expect(currentCache.webContexts && currentCache.webContexts["https://example.com"]).toBe(
-      "Web content"
-    );
-    expect(
-      currentCache.youtubeContexts && currentCache.youtubeContexts["https://youtube.com/test"]
-    ).toBe("YouTube content");
+    expect(currentCache.fileContexts["temp.md"]).toBeDefined();
   });
 
   test("should handle concurrent updates with updateCacheSafelyAsync", async () => {
@@ -556,8 +423,6 @@ describe("ProjectContextCache", () => {
     const initialCache: ContextCache = {
       markdownContext: "Initial markdown content",
       markdownNeedsReload: false,
-      webContexts: {},
-      youtubeContexts: {},
       fileContexts: {},
       timestamp: Date.now(),
     };
@@ -581,16 +446,8 @@ describe("ProjectContextCache", () => {
       // Track what was written and when
       if (parsed.markdownContext === "Async updated markdown") {
         writeOrder.push(`markdown-${Date.now() - startTime}`);
-      } else if (
-        parsed.webContexts &&
-        parsed.webContexts["https://example.com"] === "Async web content"
-      ) {
-        writeOrder.push(`web-${Date.now() - startTime}`);
-      } else if (
-        parsed.youtubeContexts &&
-        parsed.youtubeContexts["https://youtube.com/test"] === "Async YouTube content"
-      ) {
-        writeOrder.push(`youtube-${Date.now() - startTime}`);
+      } else if (parsed.fileContexts["async-file.md"]) {
+        writeOrder.push(`files-${Date.now() - startTime}`);
       }
 
       return Promise.resolve();
@@ -606,46 +463,30 @@ describe("ProjectContextCache", () => {
       return cache;
     };
 
-    const updateWebAsync = async (cache: any) => {
+    const updateFileAsync = async (cache: any) => {
       const startMark = Date.now() - startTime;
-      executionOrder.push(`web-start-${startMark}`);
-      await new Promise((resolve) => setTimeout(resolve, 10));
-      cache.webContexts = { "https://example.com": "Async web content" };
-      executionOrder.push(`web-end-${Date.now() - startTime}`);
-      return cache;
-    };
-
-    const updateYoutubeAsync = async (cache: any) => {
-      const startMark = Date.now() - startTime;
-      executionOrder.push(`youtube-start-${startMark}`);
-      await new Promise((resolve) => setTimeout(resolve, 20));
-      cache.youtubeContexts = { "https://youtube.com/test": "Async YouTube content" };
-      executionOrder.push(`youtube-end-${Date.now() - startTime}`);
+      executionOrder.push(`files-start-${startMark}`);
+      await new Promise((resolve) => setTimeout(resolve, 15));
+      cache.fileContexts["async-file.md"] = {
+        timestamp: Date.now(),
+        cacheKey: "async-file-key",
+      };
+      executionOrder.push(`files-end-${Date.now() - startTime}`);
       return cache;
     };
 
     // Execute concurrent async updates
     await Promise.all([
       projectContextCache.updateCacheSafelyAsync(mockProject, updateMarkdownAsync),
-      projectContextCache.updateCacheSafelyAsync(mockProject, updateWebAsync),
-      projectContextCache.updateCacheSafelyAsync(mockProject, updateYoutubeAsync),
+      projectContextCache.updateCacheSafelyAsync(mockProject, updateFileAsync),
     ]);
 
     // Verify all writes occurred
-    expect(mockApp.vault.adapter.write).toHaveBeenCalledTimes(3);
-    expect(writeOrder.length).toBe(3);
+    expect(mockApp.vault.adapter.write).toHaveBeenCalledTimes(2);
+    expect(writeOrder.length).toBe(2);
 
     // Verify all updates were applied to the final cache
     expect(currentCache.markdownContext).toBe("Async updated markdown");
-    expect(currentCache.webContexts && currentCache.webContexts["https://example.com"]).toBe(
-      "Async web content"
-    );
-    expect(
-      currentCache.youtubeContexts && currentCache.youtubeContexts["https://youtube.com/test"]
-    ).toBe("Async YouTube content");
-
-    // Log order details for debugging
-    // console.log("Execution order:", executionOrder);
-    // console.log("Write order:", writeOrder);
+    expect(currentCache.fileContexts["async-file.md"]).toBeDefined();
   });
 });

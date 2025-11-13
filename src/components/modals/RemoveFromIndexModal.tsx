@@ -1,4 +1,5 @@
 import { App, Modal, Setting } from "obsidian";
+import { translate } from "@/i18n";
 
 export class RemoveFromIndexModal extends Modal {
   private filePaths = "";
@@ -12,20 +13,18 @@ export class RemoveFromIndexModal extends Modal {
   onOpen() {
     const { contentEl } = this;
 
-    contentEl.createEl("h2", { text: "Remove Files from Copilot Index" });
+    contentEl.createEl("h2", { text: translate("modal.removeFromIndex.heading") });
 
     // Create a full-width container
     const container = contentEl.createDiv({ cls: "remove-files-container" });
 
     new Setting(container)
-      .setName("File paths")
-      .setDesc(
-        "Paste the markdown list of file paths to remove from the index. You can get the list by running the command `List all indexed files`."
-      )
+      .setName(translate("modal.removeFromIndex.fieldName"))
+      .setDesc(translate("modal.removeFromIndex.description"))
       .setClass("remove-files-setting")
       .addTextArea((text) =>
         text
-          .setPlaceholder("- [[path/to/file1.md]]\n- [[path/to/file2.md]]")
+          .setPlaceholder(translate("modal.removeFromIndex.placeholder"))
           .setValue(this.filePaths)
           .onChange((value) => {
             this.filePaths = value;
@@ -34,7 +33,7 @@ export class RemoveFromIndexModal extends Modal {
 
     new Setting(container).addButton((btn) =>
       btn
-        .setButtonText("Remove")
+        .setButtonText(translate("modal.removeFromIndex.button"))
         .setCta()
         .onClick(() => {
           const paths = this.filePaths

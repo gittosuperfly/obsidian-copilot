@@ -23,6 +23,7 @@ import { FolderSearchModal } from "@/components/modals/FolderSearchModal";
 import { ExtensionInputModal } from "@/components/modals/ExtensionInputModal";
 import { CustomPatternInputModal } from "@/components/modals/CustomPatternInputModal";
 import { TruncatedText } from "@/components/TruncatedText";
+import { useI18n } from "@/i18n";
 
 function PatternListGroup({
   title,
@@ -62,6 +63,7 @@ function PatternMatchingModalContent({
   onUpdate: (value: string) => void;
   container: HTMLElement;
 }) {
+  const { t } = useI18n();
   const [value, setValue] = useState(initialValue);
   const patterns = getDecodedPatterns(value);
   const { tagPatterns, extensionPatterns, folderPatterns, notePatterns } =
@@ -92,10 +94,12 @@ function PatternMatchingModalContent({
   return (
     <div className="tw-mt-2 tw-flex tw-flex-col tw-gap-4">
       <div className="tw-flex tw-max-h-[400px] tw-flex-col tw-gap-2 tw-overflow-y-auto tw-rounded-md tw-border tw-border-solid tw-border-border tw-p-4">
-        {!hasValue && <div className="tw-text-center tw-text-sm">No patterns specified</div>}
+        {!hasValue && (
+          <div className="tw-text-center tw-text-sm">{t("modal.patternMatching.empty")}</div>
+        )}
         {tagPatterns.length > 0 && (
           <PatternListGroup
-            title="Tags"
+            title={t("modal.patternMatching.tags")}
             patterns={tagPatterns}
             onRemove={(pattern) => {
               const newPatterns = tagPatterns.filter((p) => p !== pattern);
@@ -107,7 +111,7 @@ function PatternMatchingModalContent({
         )}
         {extensionPatterns.length > 0 && (
           <PatternListGroup
-            title="Extensions"
+            title={t("modal.patternMatching.extensions")}
             patterns={extensionPatterns}
             onRemove={(pattern) => {
               const newPatterns = extensionPatterns.filter((p) => p !== pattern);
@@ -119,7 +123,7 @@ function PatternMatchingModalContent({
         )}
         {folderPatterns.length > 0 && (
           <PatternListGroup
-            title="Folders"
+            title={t("modal.patternMatching.folders")}
             patterns={folderPatterns}
             onRemove={(pattern) => {
               const newPatterns = folderPatterns.filter((p) => p !== pattern);
@@ -131,7 +135,7 @@ function PatternMatchingModalContent({
         )}
         {notePatterns.length > 0 && (
           <PatternListGroup
-            title="Notes"
+            title={t("modal.patternMatching.notes")}
             patterns={notePatterns}
             onRemove={(pattern) => {
               const newPatterns = notePatterns.filter((p) => p !== pattern);
@@ -145,7 +149,7 @@ function PatternMatchingModalContent({
       <div className="tw-flex tw-justify-end tw-gap-2">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="secondary">Add...</Button>
+            <Button variant="secondary">{t("modal.patternMatching.add")}</Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" container={container}>
             <DropdownMenuItem
@@ -163,7 +167,7 @@ function PatternMatchingModalContent({
             >
               <div className="tw-flex tw-items-center tw-gap-2">
                 <Tag className="tw-size-4" />
-                Tag
+                {t("modal.patternMatching.dropdown.tag")}
               </div>
             </DropdownMenuItem>
             <DropdownMenuItem
@@ -180,7 +184,7 @@ function PatternMatchingModalContent({
             >
               <div className="tw-flex tw-items-center tw-gap-2">
                 <Folder className="tw-size-4" />
-                Folder
+                {t("modal.patternMatching.dropdown.folder")}
               </div>
             </DropdownMenuItem>
             <DropdownMenuItem
@@ -203,7 +207,7 @@ function PatternMatchingModalContent({
             >
               <div className="tw-flex tw-items-center tw-gap-2">
                 <FileText className="tw-size-4" />
-                Note
+                {t("modal.patternMatching.dropdown.note")}
               </div>
             </DropdownMenuItem>
             <DropdownMenuItem
@@ -221,7 +225,7 @@ function PatternMatchingModalContent({
             >
               <div className="tw-flex tw-items-center tw-gap-2">
                 <File className="tw-size-4" />
-                Extension
+                {t("modal.patternMatching.dropdown.extension")}
               </div>
             </DropdownMenuItem>
             <DropdownMenuItem
@@ -245,7 +249,7 @@ function PatternMatchingModalContent({
             >
               <div className="tw-flex tw-items-center tw-gap-2">
                 <Wrench className="tw-size-4" />
-                Custom
+                {t("modal.patternMatching.dropdown.custom")}
               </div>
             </DropdownMenuItem>
           </DropdownMenuContent>

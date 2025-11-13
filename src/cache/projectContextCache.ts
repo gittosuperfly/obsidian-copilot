@@ -13,10 +13,6 @@ export interface ContextCache {
   markdownContext: string;
   markdownNeedsReload: boolean;
 
-  // External content contexts
-  webContexts: { [url: string]: string };
-  youtubeContexts: { [url: string]: string };
-
   // File references (not the actual content)
   fileContexts: { [filePath: string]: { timestamp: number; cacheKey: string } };
 
@@ -275,8 +271,6 @@ export class ProjectContextCache {
   private createEmptyCache(): ContextCache {
     return {
       markdownContext: "",
-      webContexts: {},
-      youtubeContexts: {},
       fileContexts: {},
       timestamp: Date.now(),
       markdownNeedsReload: true,
@@ -411,12 +405,6 @@ export class ProjectContextCache {
       (cache) => {
         cache.markdownContext = "";
         cache.markdownNeedsReload = true;
-
-        if (forceReloadAllRemotes) {
-          cache.webContexts = {};
-          cache.youtubeContexts = {};
-          logInfo(`Flagged Web/YouTube contexts for full reload for project ${project.name}`);
-        }
 
         // Also clean up any file references that no longer match the project's patterns
         const cleanedCache = this.cleanupFileReferencesInCache(project, cache);
@@ -819,84 +807,6 @@ export class ProjectContextCache {
       logError(`[updateProjectFilesFromPatterns] Error for project ${project.name}:`, error);
     }
     return contextCacheToUpdate;
-  }
-
-  //===========================================================================
-  // WEB CONTEXT OPERATIONS
-  //===========================================================================
-
-  /**
-   * Remove a web URLs from a project's context
-   */
-
-  async removeWebUrls(project: ProjectConfig, urls: string[]): Promise<void> {
-    if (!urls.length) return;
-
-    await this.updateCacheSafely(project, (cache) => {
-      if (cache.webContexts) {
-        for (const url of urls) {
-          if (cache.webContexts[url]) {
-            delete cache.webContexts[url];
-          }
-        }
-        logInfo(`Removed web contexts for URLs ${urls.join(", ")} in project ${project.name}`);
-      }
-      return cache;
-    });
-  }
-
-  /**
-   * Add or update a web URL in a project's context
-   */
-  async updateWebUrl(project: ProjectConfig, url: string, content: string): Promise<void> {
-    return await this.updateCacheSafely(project, (cache) => {
-      if (!cache.webContexts) {
-        cache.webContexts = {};
-      }
-      cache.webContexts[url] = content;
-      logInfo(`Updated web context for URL ${url} in project ${project.name}`);
-      return cache;
-    });
-  }
-
-  //===========================================================================
-  // YOUTUBE CONTEXT OPERATIONS
-  //===========================================================================
-
-  /**
-   * Remove a YouTube URLs from a project's context
-   */
-
-  async removeYoutubeUrls(project: ProjectConfig, urls: string[]): Promise<void> {
-    if (!urls.length) return;
-
-    await this.updateCacheSafely(project, (cache) => {
-      if (cache.youtubeContexts) {
-        for (const url of urls) {
-          if (cache.youtubeContexts[url]) {
-            delete cache.youtubeContexts[url];
-          }
-        }
-        logInfo(
-          `removeYoutubeUrls: Removed YouTube contexts for URLs ${urls.join(", ")} in project ${project.name}`
-        );
-      }
-      return cache;
-    });
-  }
-
-  /**
-   * Add or update a YouTube URL in a project's context
-   */
-  async updateYoutubeUrl(project: ProjectConfig, url: string, content: string): Promise<void> {
-    return await this.updateCacheSafely(project, (cache) => {
-      if (!cache.youtubeContexts) {
-        cache.youtubeContexts = {};
-      }
-      cache.youtubeContexts[url] = content;
-      logInfo(`Updated YouTube context for URL ${url} in project ${project.name}`);
-      return cache;
-    });
   }
 
   //===========================================================================

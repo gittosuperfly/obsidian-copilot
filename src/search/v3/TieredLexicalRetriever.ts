@@ -48,7 +48,6 @@ export class TieredLexicalRetriever extends BaseRetriever {
       timeRange?: { startTime: number; endTime: number };
       textWeight?: number;
       returnAll?: boolean;
-      useRerankerThreshold?: number; // Not used in v3, kept for compatibility
       returnAllTags?: boolean;
       tagTerms?: string[];
     }

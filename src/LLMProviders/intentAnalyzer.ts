@@ -1,145 +1,90 @@
-import ProjectManager from "@/LLMProviders/projectManager";
-import { isProjectMode } from "@/aiParams";
 import { createGetFileTreeTool } from "@/tools/FileTreeTools";
-import { indexTool, localSearchTool, webSearchTool } from "@/tools/SearchTools";
-import {
-  convertTimeBetweenTimezonesTool,
-  getCurrentTimeTool,
-  getTimeInfoByEpochTool,
-  getTimeRangeMsTool,
-  TimeInfo,
-} from "@/tools/TimeTools";
-import { ToolManager } from "@/tools/toolManager";
-import { extractChatHistory } from "@/utils";
-import { Vault } from "obsidian";
-import { BrevilabsClient } from "./brevilabsClient";
+import { localSearchTool } from "@/tools/SearchTools";
+import { getCurrentTimeTool } from "@/tools/TimeTools";
 import { updateMemoryTool } from "@/tools/memoryTools";
 import { AVAILABLE_TOOLS } from "@/components/chat-components/constants/tools";
+import { Vault } from "obsidian";
 
 type ToolCall = {
   tool: any;
   args: any;
 };
 
-export class IntentAnalyzer {
-  private static tools: any[] = [];
+interface AnalyzeContext {
+  salientTerms: string[];
+}
 
+export class IntentAnalyzer {
+  private static isInitialized = false;
+
+  /**
+   * Kept for backwards compatibility so existing initialization calls remain harmless.
+   */
   static initTools(vault: Vault) {
-    if (this.tools.length === 0) {
-      this.tools = [
-        getCurrentTimeTool,
-        convertTimeBetweenTimezonesTool,
-        getTimeInfoByEpochTool,
-        getTimeRangeMsTool,
-        localSearchTool,
-        indexTool,
-        webSearchTool,
-        createGetFileTreeTool(vault.getRoot()),
-      ];
-    }
+    if (this.isInitialized) return;
+    // Previously used to register FileTree helpers; retained for compatibility.
+    createGetFileTreeTool(vault.getRoot());
+    this.isInitialized = true;
   }
 
   static async analyzeIntent(originalMessage: string): Promise<ToolCall[]> {
-    try {
-      const brocaResponse = await BrevilabsClient.getInstance().broca(
-        originalMessage,
-        isProjectMode()
-      );
+    const processedToolCalls: ToolCall[] = [];
+    const salientTerms = this.extractSalientTerms(originalMessage);
 
-      // Check if the response is successful and has the expected structure
-      if (!brocaResponse?.response) {
-        throw new Error(brocaResponse?.detail || "Broca API call failed");
-      }
+    await this.processAtCommands(originalMessage, processedToolCalls, {
+      salientTerms,
+    });
 
-      const brocaToolCalls = brocaResponse.response.tool_calls;
-      const salientTerms = brocaResponse.response.salience_terms;
+    return processedToolCalls;
+  }
 
-      const processedToolCalls: ToolCall[] = [];
-      let timeRange: { startTime: TimeInfo; endTime: TimeInfo } | undefined;
+  private static extractSalientTerms(message: string): string[] {
+    const tokens = message
+      .split(/\s+/)
+      .map((token) => token.trim())
+      .filter(Boolean)
+      .filter((token) => !token.startsWith("@"));
 
-      // Process tool calls from broca
-      for (const brocaToolCall of brocaToolCalls) {
-        const tool = this.tools.find((t) => t.name === brocaToolCall.tool);
-        if (tool) {
-          const args = brocaToolCall.args || {};
+    const filtered = tokens
+      .map((token) => token.replace(/[^\w#/-]/g, ""))
+      .filter((token) => token.length > 2);
 
-          if (tool.name === "getTimeRangeMs") {
-            timeRange = await ToolManager.callTool(tool, args);
-          }
-          if (tool.name == "getFileTree" && isProjectMode()) {
-            // Skip file tree tool call in project mode so when user asks "what files do I have?",
-            // we return files in the project context instead of the vault.
-            continue;
-          }
-
-          processedToolCalls.push({ tool, args });
-        }
-      }
-
-      // Process @ commands from original message only
-      await this.processAtCommands(originalMessage, processedToolCalls, {
-        timeRange,
-        salientTerms,
-      });
-
-      return processedToolCalls;
-    } catch (error) {
-      console.error("Error in intent analysis:", error);
-      throw error; // Re-throw the error to be caught by CopilotPlusChainRunner
-    }
+    return Array.from(new Set(filtered));
   }
 
   private static async processAtCommands(
     originalMessage: string,
     processedToolCalls: ToolCall[],
-    context: {
-      timeRange?: { startTime: TimeInfo; endTime: TimeInfo };
-      salientTerms: string[];
-    }
+    context: AnalyzeContext
   ): Promise<void> {
     const message = originalMessage.toLowerCase();
-    const { timeRange, salientTerms } = context;
+    const { salientTerms } = context;
 
-    // Handle @vault command
     if (message.includes("@vault")) {
-      // Remove all @commands from the query
       const cleanQuery = this.removeAtCommands(originalMessage);
-
       processedToolCalls.push({
         tool: localSearchTool,
         args: {
-          timeRange: timeRange || undefined,
           query: cleanQuery,
           salientTerms,
         },
       });
     }
 
-    // Handle @websearch command and also support @web for backward compatibility
-    if (message.includes("@websearch") || message.includes("@web")) {
-      const cleanQuery = this.removeAtCommands(originalMessage);
-      const memory = ProjectManager.instance.getCurrentChainManager().memoryManager.getMemory();
-      const memoryVariables = await memory.loadMemoryVariables({});
-      const chatHistory = extractChatHistory(memoryVariables);
-
-      processedToolCalls.push({
-        tool: webSearchTool,
-        args: {
-          query: cleanQuery,
-          chatHistory,
-        },
-      });
-    }
-
-    // Handle @memory command
     if (message.includes("@memory")) {
       const cleanQuery = this.removeAtCommands(originalMessage);
-
       processedToolCalls.push({
         tool: updateMemoryTool,
         args: {
           statement: cleanQuery,
         },
+      });
+    }
+
+    if (message.includes("@time")) {
+      processedToolCalls.push({
+        tool: getCurrentTimeTool,
+        args: {},
       });
     }
   }

@@ -14,14 +14,11 @@ import CopilotView from "@/components/CopilotView";
 import { CHAT_VIEWTYPE, VAULT_VECTOR_STORE_STRATEGY } from "@/constants";
 import { logError, logInfo, logWarn } from "@/logger";
 import CopilotPlugin from "@/main";
-import { Mention } from "@/mentions/Mention";
 import { getMatchingPatterns, shouldIndexFile } from "@/search/searchUtils";
 import { getSettings, subscribeToSettingsChange } from "@/settings/model";
 import { FileParserManager } from "@/tools/FileParserManager";
 import { err2String } from "@/utils";
-import { isRateLimitError } from "@/utils/rateLimitUtils";
 import { App, Notice, TFile } from "obsidian";
-import { BrevilabsClient } from "./brevilabsClient";
 import ChainManager from "./chainManager";
 import { ProjectLoadTracker } from "./projectLoadTracker";
 
@@ -41,12 +38,7 @@ export default class ProjectManager {
     this.currentProjectId = null;
     this.chainMangerInstance = new ChainManager(app);
     this.projectContextCache = ProjectContextCache.getInstance();
-    this.fileParserManager = new FileParserManager(
-      BrevilabsClient.getInstance(),
-      this.app.vault,
-      true,
-      null
-    );
+    this.fileParserManager = new FileParserManager();
     this.loadTracker = ProjectLoadTracker.getInstance(this.app);
 
     // Set up subscriptions
@@ -64,7 +56,7 @@ export default class ProjectManager {
         settings.enableSemanticSearchV3 &&
         settings.indexVaultToVectorStore === VAULT_VECTOR_STORE_STRATEGY.ON_MODE_SWITCH &&
         (getChainType() === ChainType.VAULT_QA_CHAIN ||
-          getChainType() === ChainType.COPILOT_PLUS_CHAIN);
+          getChainType() === ChainType.ADVANCED_CHAIN);
       await this.getCurrentChainManager().createChainWithNewModel({
         refreshIndex: shouldAutoIndex,
       });
@@ -157,12 +149,7 @@ export default class ProjectManager {
       await this.loadNextProjectMessage();
       await this.getCurrentChainManager().createChainWithNewModel();
       // Update FileParserManager with the current project
-      this.fileParserManager = new FileParserManager(
-        BrevilabsClient.getInstance(),
-        this.app.vault,
-        true,
-        project
-      );
+      this.fileParserManager = new FileParserManager();
       await this.loadProjectContext(project);
 
       // fresh chat view
@@ -215,11 +202,11 @@ export default class ProjectManager {
       this.loadTracker.preComputeAllItems(project, projectAllFiles);
       this.loadTracker.markAllCachedItemsAsSuccess(project, contextCache, projectAllFiles);
 
-      const [updatedContextCacheAfterSources] = await Promise.all([
-        this.processMarkdownFiles(project, contextCache, projectAllFiles),
-        this.processWebUrls(project, contextCache),
-        this.processYoutubeUrls(project, contextCache),
-      ]);
+      const updatedContextCacheAfterSources = await this.processMarkdownFiles(
+        project,
+        contextCache,
+        projectAllFiles
+      );
 
       updatedContextCacheAfterSources.timestamp = Date.now();
       // Note: Since non-markdown files cannot pass cache parameters , so we need to save the context cache first
@@ -260,38 +247,6 @@ export default class ProjectManager {
         await this.projectContextCache.invalidateMarkdownContext(nextProject);
         logInfo(
           `Markdown configuration changed for project ${nextProject.name}, marking for reload`
-        );
-      }
-
-      // Check if Web URLs configuration has changed
-      const prevWebUrls = prevProject.contextSource?.webUrls || "";
-      const nextWebUrls = nextProject.contextSource?.webUrls || "";
-
-      if (prevWebUrls !== nextWebUrls) {
-        // Find removed URLs
-        const prevUrls = prevWebUrls.split("\n").filter((url) => url.trim());
-        const nextUrls = nextWebUrls.split("\n").filter((url) => url.trim());
-
-        // Remove context for URLs that no longer exist
-        await this.projectContextCache.removeWebUrls(
-          nextProject,
-          prevUrls.filter((url) => !nextUrls.includes(url))
-        );
-      }
-
-      // Check if YouTube URLs configuration has changed
-      const prevYoutubeUrls = prevProject.contextSource?.youtubeUrls || "";
-      const nextYoutubeUrls = nextProject.contextSource?.youtubeUrls || "";
-
-      if (prevYoutubeUrls !== nextYoutubeUrls) {
-        // Find removed URLs
-        const prevUrls = prevYoutubeUrls.split("\n").filter((url) => url.trim());
-        const nextUrls = nextYoutubeUrls.split("\n").filter((url) => url.trim());
-
-        // Remove context for URLs that no longer exist
-        await this.projectContextCache.removeYoutubeUrls(
-          nextProject,
-          prevUrls.filter((url) => !nextUrls.includes(url))
         );
       }
     } catch (error) {
@@ -353,16 +308,6 @@ export default class ProjectManager {
       contextParts.push(`## Markdown Files\n${contextCache.markdownContext}`);
     }
 
-    if (Object.keys(contextCache.webContexts).length > 0) {
-      contextParts.push(`## Web Content\n${Object.values(contextCache.webContexts).join("\n\n")}`);
-    }
-
-    if (Object.keys(contextCache.youtubeContexts).length > 0) {
-      contextParts.push(
-        `## YouTube Content\n${Object.values(contextCache.youtubeContexts).join("\n\n")}`
-      );
-    }
-
     // Add file contexts section with content loaded from FileCache
     if (Object.keys(contextCache.fileContexts).length > 0) {
       const otherFileContextEntries = Object.entries(contextCache.fileContexts).filter(
@@ -409,16 +354,6 @@ ${contextParts.join("\n\n")}
 
     if (contextCache.markdownContext) {
       contextParts.push(`## Markdown Files\n${contextCache.markdownContext}`);
-    }
-
-    if (Object.keys(contextCache.webContexts).length > 0) {
-      contextParts.push(`## Web Content\n${Object.values(contextCache.webContexts).join("\n\n")}`);
-    }
-
-    if (Object.keys(contextCache.youtubeContexts).length > 0) {
-      contextParts.push(
-        `## YouTube Content\n${Object.values(contextCache.youtubeContexts).join("\n\n")}`
-      );
     }
 
     // Add file contexts section - just include metadata without content
@@ -542,250 +477,15 @@ modified: ${stat ? new Date(stat.mtime).toISOString() : "unknown"}`;
     return processedNotes.join("\n\n");
   }
 
-  private async processWebUrls(
-    project: ProjectConfig,
-    contextCache: ContextCache
-  ): Promise<ContextCache> {
-    logInfo(`[processWebUrls] Starting for project: ${project.name}`);
-    const configuredUrlsString = project.contextSource?.webUrls?.trim() || "";
-
-    if (!configuredUrlsString) {
-      if (Object.keys(contextCache.webContexts).length > 0) {
-        logInfo(
-          `[processWebUrls] Project ${project.name}: Clearing all Web contexts as none are configured.`
-        );
-        contextCache.webContexts = {};
-      }
-      // No need to log if no URLs are configured and cache is already empty.
-      return contextCache;
-    }
-
-    const urlsInConfig = configuredUrlsString.split("\n").filter((url) => url.trim());
-    logInfo(
-      `[processWebUrls] Project ${project.name}: Found ${urlsInConfig.length} URLs in config.`
-    );
-    const currentCachedUrls = Object.keys(contextCache.webContexts);
-
-    const urlsToFetch = urlsInConfig.filter((url) => !contextCache.webContexts[url]);
-    if (urlsToFetch.length > 0) {
-      logInfo(
-        `[processWebUrls] Project ${project.name}: Fetching content for ${urlsToFetch.length} new/updated Web URLs.`
-      );
-    }
-
-    const urlsToRemove = currentCachedUrls.filter((url) => !urlsInConfig.includes(url));
-    if (urlsToRemove.length > 0) {
-      logInfo(
-        `[processWebUrls] Project ${project.name}: Removing ${urlsToRemove.length} obsolete Web URL contexts.`
-      );
-      for (const url of urlsToRemove) {
-        delete contextCache.webContexts[url];
-      }
-    }
-
-    const webContextPromises = urlsToFetch.map(async (url) => {
-      // processWebUrlContext itself should log errors if a specific URL fetch fails.
-      const webContext = await this.processWebUrlContext(url);
-      if (webContext) {
-        logInfo(
-          `[processWebUrls] Project ${project.name}: Successfully fetched content for URL: ${url.substring(0, 50)}...`
-        );
-      }
-      return { url, context: webContext };
-    });
-
-    const results = await Promise.all(webContextPromises);
-    results.forEach((result) => {
-      if (result && result.context) {
-        contextCache.webContexts[result.url] = result.context;
-      } else if (result && !result.context) {
-        logWarn(
-          `[processWebUrls] Project ${project.name}: Fetched empty content for Web URL: ${result.url}`
-        );
-      }
-    });
-    logInfo(
-      `[processWebUrls] Completed for project: ${project.name}. Total Web contexts: ${Object.keys(contextCache.webContexts).length}`
-    );
-    return contextCache;
-  }
-
-  private async processYoutubeUrls(
-    project: ProjectConfig,
-    contextCache: ContextCache
-  ): Promise<ContextCache> {
-    logInfo(`[processYoutubeUrls] Starting for project: ${project.name}`);
-    const configuredUrlsString = project.contextSource?.youtubeUrls?.trim() || "";
-
-    if (!configuredUrlsString) {
-      if (Object.keys(contextCache.youtubeContexts).length > 0) {
-        logInfo(
-          `[processYoutubeUrls] Project ${project.name}: Clearing all YouTube contexts as none are configured.`
-        );
-        contextCache.youtubeContexts = {};
-      }
-      return contextCache;
-    }
-
-    const urlsInConfig = configuredUrlsString.split("\n").filter((url) => url.trim());
-    logInfo(
-      `[processYoutubeUrls] Project ${project.name}: Found ${urlsInConfig.length} YouTube URLs in config.`
-    );
-    const currentCachedUrls = Object.keys(contextCache.youtubeContexts);
-
-    const urlsToFetch = urlsInConfig.filter((url) => !contextCache.youtubeContexts[url]);
-    if (urlsToFetch.length > 0) {
-      logInfo(
-        `[processYoutubeUrls] Project ${project.name}: Fetching transcripts for ${urlsToFetch.length} new/updated YouTube URLs.`
-      );
-    }
-
-    const urlsToRemove = currentCachedUrls.filter((url) => !urlsInConfig.includes(url));
-    if (urlsToRemove.length > 0) {
-      logInfo(
-        `[processYoutubeUrls] Project ${project.name}: Removing ${urlsToRemove.length} obsolete YouTube URL contexts.`
-      );
-      for (const url of urlsToRemove) {
-        delete contextCache.youtubeContexts[url];
-      }
-    }
-
-    const youtubeContextPromises = urlsToFetch.map(async (url) => {
-      const youtubeContext = await this.processYoutubeUrlContext(url);
-      if (youtubeContext) {
-        logInfo(
-          `[processYoutubeUrls] Project ${project.name}: Successfully fetched transcript for YouTube URL: ${url.substring(0, 50)}...`
-        );
-      }
-      return { url, context: youtubeContext };
-    });
-
-    const results = await Promise.all(youtubeContextPromises);
-    results.forEach((result) => {
-      if (result && result.context) {
-        contextCache.youtubeContexts[result.url] = result.context;
-      } else if (result && !result.context) {
-        logWarn(
-          `[processYoutubeUrls] Project ${project.name}: Fetched empty transcript for YouTube URL: ${result.url}`
-        );
-      }
-    });
-    logInfo(
-      `[processYoutubeUrls] Completed for project: ${project.name}. Total YouTube contexts: ${Object.keys(contextCache.youtubeContexts).length}`
-    );
-    return contextCache;
-  }
-
-  private async processWebUrlContext(webUrl?: string): Promise<string> {
-    if (!webUrl?.trim()) {
-      return "";
-    }
-
-    try {
-      const mention = Mention.getInstance();
-      const { urlContext } = await this.loadTracker.executeWithProcessTracking(
-        webUrl,
-        "web",
-        async () => {
-          const result = await mention.processUrls(webUrl);
-
-          if (result.processedErrorUrls[webUrl]) {
-            throw new Error(result.processedErrorUrls[webUrl]);
-          }
-          return result;
-        }
-      );
-      return urlContext || "";
-    } catch (error) {
-      logError(`Failed to process web URL: ${error}`);
-      return "";
-    }
-  }
-
-  private async processYoutubeUrlContext(youtubeUrl?: string): Promise<string> {
-    if (!youtubeUrl?.trim()) {
-      return "";
-    }
-
-    try {
-      const response = await this.loadTracker.executeWithProcessTracking(
-        youtubeUrl,
-        "youtube",
-        async () => {
-          return BrevilabsClient.getInstance().youtube4llm(youtubeUrl);
-        }
-      );
-      if (response.response.transcript) {
-        return `\n\nYouTube transcript from ${youtubeUrl}:\n${response.response.transcript}`;
-      }
-      return "";
-    } catch (error) {
-      logError(`Failed to process YouTube URL ${youtubeUrl}: ${error}`);
-      new Notice(`Failed to process YouTube URL ${youtubeUrl}: ${err2String(error)}`);
-      return "";
-    }
-  }
-
   private async processNonMarkdownFiles(
     project: ProjectConfig,
     projectAllFiles: TFile[]
   ): Promise<void> {
     const nonMarkdownFiles = projectAllFiles.filter((file) => file.extension !== "md");
 
-    logInfo(
-      `[loadProjectContext] Project ${project.name}: Checking for non-markdown processing: ${nonMarkdownFiles.length} files .`
-    );
-
-    if (nonMarkdownFiles.length <= 0) {
-      return;
-    }
-
-    this.fileParserManager = new FileParserManager(
-      BrevilabsClient.getInstance(),
-      this.app.vault,
-      true,
-      project
-    );
-
-    let processedNonMdCount = 0;
-
-    for (const file of nonMarkdownFiles) {
-      const filePath = file.path;
-      if (this.fileParserManager.supportsExtension(file.extension)) {
-        try {
-          await this.loadTracker.executeWithProcessTracking(filePath, "nonMd", async () => {
-            const existingContent = await this.projectContextCache.getOrReuseFileContext(
-              project,
-              filePath
-            );
-            if (existingContent) {
-              processedNonMdCount++;
-            } else {
-              logInfo(
-                `[loadProjectContext] Project ${project.name}: Parsing/caching new/updated file: ${filePath}`
-              );
-
-              await this.fileParserManager.parseFile(file, this.app.vault);
-              processedNonMdCount++;
-            }
-          });
-        } catch (error) {
-          logError(
-            `[loadProjectContext] Project ${project.name}: Error parsing file ${filePath}:`,
-            error
-          );
-
-          // Check if this is a rate limit error and re-throw it to fail the entire operation
-          if (isRateLimitError(error)) {
-            throw error; // Re-throw to fail the entire operation
-          }
-        }
-      }
-    }
-
-    if (processedNonMdCount > 0) {
-      logInfo(
-        `[loadProjectContext] Project ${project.name}: Processed and cached ${processedNonMdCount} non-markdown files.`
+    if (nonMarkdownFiles.length > 0) {
+      logWarn(
+        `[loadProjectContext] Project ${project.name}: Skipping ${nonMarkdownFiles.length} non-markdown files (unsupported format).`
       );
     }
   }
@@ -811,12 +511,6 @@ modified: ${stat ? new Date(stat.mtime).toISOString() : "unknown"}`;
 
       // Handle different retry types
       switch (failedItem.type) {
-        case "web":
-          await this.retryWebUrl(project, failedItem.path);
-          break;
-        case "youtube":
-          await this.retryYoutubeUrl(project, failedItem.path);
-          break;
         case "md":
           await this.retryMarkdownFile(project, failedItem.path);
           break;
@@ -837,34 +531,6 @@ modified: ${stat ? new Date(stat.mtime).toISOString() : "unknown"}`;
       );
       new Notice(`Retry failed: ${err2String(error)}`);
     }
-  }
-
-  private async retryWebUrl(project: ProjectConfig, url: string): Promise<void> {
-    const webContext = await this.processWebUrlContext(url);
-    if (!webContext) {
-      logWarn(`[retryWebUrl] Project ${project.name}: Fetched empty content for Web URL: ${url}`);
-      return;
-    }
-
-    logInfo(
-      `[retryWebUrl] Project ${project.name}: Successfully fetched content for URL: ${url.substring(0, 50)}...`
-    );
-    await this.projectContextCache.updateWebUrl(project, url, webContext);
-  }
-
-  private async retryYoutubeUrl(project: ProjectConfig, url: string): Promise<void> {
-    const youtubeContext = await this.processYoutubeUrlContext(url);
-    if (!youtubeContext) {
-      logWarn(
-        `[retryYoutubeUrl] Project ${project.name}: Fetched empty transcript for YouTube URL: ${url}`
-      );
-      return;
-    }
-
-    logInfo(
-      `[retryYoutubeUrl] Project ${project.name}: Successfully fetched transcript for YouTube URL: ${url.substring(0, 50)}...`
-    );
-    await this.projectContextCache.updateYoutubeUrl(project, url, youtubeContext);
   }
 
   private async retryMarkdownFile(project: ProjectConfig, filePath: string): Promise<void> {

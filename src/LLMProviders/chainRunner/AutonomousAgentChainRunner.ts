@@ -2,7 +2,6 @@ import { ModelCapability } from "@/constants";
 import { MessageContent } from "@/imageProcessing/imageProcessor";
 import { logError, logInfo, logWarn } from "@/logger";
 import { UserMemoryManager } from "@/memory/UserMemoryManager";
-import { checkIsPlusUser } from "@/plusUtils";
 import { getSettings, getSystemPromptWithMemory } from "@/settings/model";
 import { initializeBuiltinTools } from "@/tools/builtinTools";
 import { extractParametersFromZod, SimpleTool } from "@/tools/SimpleTool";
@@ -12,7 +11,7 @@ import { ChatMessage, ResponseMetadata, StreamingResult } from "@/types/message"
 import { err2String, getMessageRole, withSuppressedTokenWarnings } from "@/utils";
 import { formatErrorChunk, processToolResults } from "@/utils/toolResultUtils";
 import { AIMessage, BaseMessage, HumanMessage } from "@langchain/core/messages";
-import { CopilotPlusChainRunner } from "./CopilotPlusChainRunner";
+import { AdvancedChainRunner } from "./AdvancedChainRunner";
 import { addChatHistoryToMessages } from "./utils/chatHistoryUtils";
 import {
   joinPromptSections,
@@ -110,7 +109,7 @@ interface AgentFinalizationParams extends AgentRunContext {
   fullAIResponse: string;
 }
 
-export class AutonomousAgentChainRunner extends CopilotPlusChainRunner {
+export class AutonomousAgentChainRunner extends AdvancedChainRunner {
   private llmFormattedMessages: string[] = []; // Track LLM-formatted messages for memory
   private lastDisplayedContent = ""; // Track the last content displayed to user for error recovery
 
@@ -235,10 +234,6 @@ ${params}
     let fullAIResponse = "";
     let responseMetadata: ResponseMetadata | undefined;
 
-    const isPlusUser = await checkIsPlusUser({
-      isAutonomousAgent: true,
-    });
-
     // Use model adapter for clean model-specific handling
     const chatModel = this.chainManager.chatModelManager.getChatModel();
     const adapter = ModelAdapterFactory.createAdapter(chatModel);
@@ -249,24 +244,6 @@ ${params}
 
     // Create ThinkBlockStreamer to manage all content and errors
     const thinkStreamer = new ThinkBlockStreamer(updateCurrentAiMessage, adapter, excludeThinking);
-
-    if (!isPlusUser) {
-      await this.handleError(
-        new Error("Invalid license key"),
-        thinkStreamer.processErrorChunk.bind(thinkStreamer)
-      );
-      const errorResponse = thinkStreamer.close().content;
-
-      // Use handleResponse to properly save error to conversation history and memory
-      return this.handleResponse(
-        errorResponse,
-        userMessage,
-        abortController,
-        addMessage,
-        updateCurrentAiMessage,
-        undefined // no sources
-      );
-    }
 
     const modelNameForLog = (chatModel as { modelName?: string } | undefined)?.modelName;
 
@@ -302,7 +279,7 @@ ${params}
       } else {
         logError("Autonomous agent failed, falling back to regular Plus mode:", error);
         try {
-          const fallbackRunner = new CopilotPlusChainRunner(this.chainManager);
+          const fallbackRunner = new AdvancedChainRunner(this.chainManager);
           return await fallbackRunner.run(
             userMessage,
             abortController,

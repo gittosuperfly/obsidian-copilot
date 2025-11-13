@@ -1,5 +1,6 @@
 // src/components/SourcesModal.tsx
 import { App, Modal } from "obsidian";
+import { translate } from "@/i18n";
 
 export class SourcesModal extends Modal {
   sources: { title: string; path: string; score: number; explanation?: any }[];
@@ -15,7 +16,7 @@ export class SourcesModal extends Modal {
   onOpen() {
     const { contentEl } = this;
     contentEl.empty();
-    contentEl.createEl("h2", { text: "Sources" });
+    contentEl.createEl("h2", { text: translate("modal.sources.heading") });
 
     // Display all sources sorted by score (already sorted from chain)
     this.createSourceList(contentEl, this.sources);
@@ -125,9 +126,12 @@ export class SourcesModal extends Modal {
     if (explanation.graphConnections) {
       const gc = explanation.graphConnections;
       const connectionParts = [];
-      if (gc.backlinks > 0) connectionParts.push(`${gc.backlinks} backlinks`);
-      if (gc.coCitations > 0) connectionParts.push(`${gc.coCitations} co-citations`);
-      if (gc.sharedTags > 0) connectionParts.push(`${gc.sharedTags} shared tags`);
+      if (gc.backlinks > 0)
+        connectionParts.push(`${gc.backlinks} ${translate("modal.sources.backlinks")}`);
+      if (gc.coCitations > 0)
+        connectionParts.push(`${gc.coCitations} ${translate("modal.sources.coCitations")}`);
+      if (gc.sharedTags > 0)
+        connectionParts.push(`${gc.sharedTags} ${translate("modal.sources.sharedTags")}`);
 
       if (connectionParts.length > 0) {
         details.push(

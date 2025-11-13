@@ -280,7 +280,7 @@ If multiple results or no result, you should ask the user to provide a more spec
         "src/LLMProviders/chainRunner/utils/modelAdapter.ts#BaseModelAdapter.buildSystemPromptSections",
       content: `## General Guidelines
 - Think hard about whether a query could potentially be answered from personal knowledge or notes, if yes, call a vault search (localSearch) first
-- NEVER mention tool names like "localSearch", "webSearch", etc. in your responses. Use natural language like "searching your vault", "searching the web", etc.
+- NEVER mention tool names like "localSearch" in your responses. Use natural language like "searching your vault" instead of referencing tool IDs.
 
 You can use multiple tools in sequence. After each tool execution, you'll receive the results and can decide whether to use more tools or provide your final response.
 
@@ -562,14 +562,6 @@ I'll search your vault for piano practice information.
 <query>ピアノの練習方法</query>
 <salientTerms>["ピアノ", "練習", "方法"]</salientTerms>
 </use_tool>
-
-<use_tool>
-<name>webSearch</name>
-<query>piano techniques</query>
-<chatHistory>[]</chatHistory>
-</use_tool>
-
-[RESPONSE ENDS HERE - NO MORE TEXT]
 
 🎯 CORRECT FOLLOW-UP RESPONSE PATTERN:
 Let me gather more specific information about practice schedules.
@@ -900,12 +892,6 @@ export class ModelAdapterFactory {
       return new GeminiModelAdapter(modelName);
     }
 
-    // Copilot Plus models
-    if (modelName.includes("copilot-plus")) {
-      logInfo("Using BaseModelAdapter for Copilot Plus");
-      return new BaseModelAdapter(modelName);
-    }
-
     // Default adapter for unknown models
     logInfo("Using BaseModelAdapter (default)");
     return new BaseModelAdapter(modelName);
@@ -926,15 +912,9 @@ export function messageRequiresTools(message: string): boolean {
     "my notes",
     "in my vault",
     "from my vault",
-    "check the web",
-    "search online",
-    "from the internet",
     "current time",
     "what time",
     "timer",
-    "youtube",
-    "video",
-    "transcript",
   ];
 
   const lowerMessage = message.toLowerCase();

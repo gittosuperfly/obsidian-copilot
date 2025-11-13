@@ -50,7 +50,7 @@ describe("AutonomousAgentChainRunner - Tool Call ID Generation", () => {
      * Test that tool call IDs for different tools are distinct
      */
     it("should generate distinct IDs for different tool types", () => {
-      const tools = ["localSearch", "readNote", "webSearch"];
+      const tools = ["localSearch", "readNote", "writeToFile"];
       const ids = tools.map(
         (tool) => `${tool}-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`
       );

@@ -22,27 +22,27 @@ The Ultimate AI Assistant for Your Second Brain
   </a>
 </p>
 
-
 ## The What
 
-*Copilot for Obsidian* is your in‑vault AI assistant with chat-based vault search, web and YouTube support, powerful context processing, and ever-expanding agentic capabilities within Obsidian's highly customizable workspace - all while keeping your data under **your** control.
+_Copilot for Obsidian_ is your in‑vault AI assistant with chat-based vault search, powerful context processing, and ever-expanding agentic capabilities within Obsidian's highly customizable workspace - all while keeping your data under **your** control.
 
 ## The Why
+
 Today's AI giants want **you trapped**: your data on their servers, prompts locked to their models, and switching costs that keep you paying. When they change pricing, shut down features, or terminate your account, you lose everything you built.
 
-We are building the opposite. Our goal is to create a portable agentic experience with no provider lock-in. **Data is always yours.** Use whatever LLM you like. Imagine that a brand new model drops, you run it on your own hardware, and it already knows about you (*long-term memory*), knows how to run *the same commands and tools* you have defined over time (as just markdown files), and becomes the thought partner and assistant that you *own*. This is AI that grows with you, not a subscription you're hostage to.
+We are building the opposite. Our goal is to create a portable agentic experience with no provider lock-in. **Data is always yours.** Use whatever LLM you like. Imagine that a brand new model drops, you run it on your own hardware, and it already knows about you (_long-term memory_), knows how to run _the same commands and tools_ you have defined over time (as just markdown files), and becomes the thought partner and assistant that you _own_. This is AI that grows with you, not a subscription you're hostage to.
 
 This is the future we believe in. If you share this vision, please support this project!
 
 ## Key Features
 
 - **🔒 Your data is 100% yours**: Local search and storage, and full control of your data if you use self-hosted models.
-- **🧠 Bring Your Own Model**: Tap any OpenAI-compatible or local model to uncover insights, spark connections, and create content. 
-- **🖼️ Multimedia understanding**: Drop in webpages, YouTube videos, images, PDFs, EPUBS, or real-time web search for quick insights.
+- **🧠 Bring Your Own Model**: Tap any OpenAI-compatible or local model to uncover insights, spark connections, and create content.
+- **🗂️ Context-rich understanding**: Reference notes, folders, and selected text (including canvas boards) without leaving Obsidian.
 - **🔍 Smart Vault Search**: Search your vault with chat, no setup required. Embeddings are optional. Copilot delivers results right away.
 - **✍️ Composer and Quick Commands**: Interact with your writing with chat, apply changes with 1 click.
 - **🗂️ Project Mode**: Create AI-ready context based on folders and tags. Think NotebookLM but inside your vault!
-- **🤖 Agent Mode (Plus)**: Unlock an autonomous agent with built-in tool calling. No commands needed. Copilot automatically triggers vault, web searches or any other relevant tool when relevant.
+- **🤖 Advanced Agent Mode**: Built-in autonomous agent with tool calling for vault/context operations—available to everyone, no separate license.
 
 <p align="center">
   <em>Copilot's Agent can call the proper tools on its own upon your request.</em>
@@ -57,8 +57,11 @@ This is the future we believe in. If you share this vision, please support this 
   - [Install Obsidian Copilot](#install-obsidian-copilot)
   - [Set API Keys](#set-api-keys)
 - [Usage](#usage)
-  - [Free User](#free-user)
-  - [Copilot Plus/Believer](#copilot-plusbeliever)
+  - [Chat Mode](#chat-mode-reference-notes-and-discuss-ideas-with-copilot)
+  - [Vault QA Mode](#vault-qa-mode-chat-with-your-entire-vault)
+  - [Command Palette](#copilots-command-palette)
+  - [Relevant Notes](#relevant-notes-notes-suggestions-based-on-semantic-similarity-and-links)
+  - [Advanced Agent Mode](#advanced-agent-mode-autonomous-tool-calling)
 - [Need Help?](#need-help)
 - [FAQ](#️faq)
 
@@ -67,8 +70,8 @@ This is the future we believe in. If you share this vision, please support this 
 After months of hard work, we have revamped the codebase and adopted a new paradigm for our agentic infrastructure. It opens the door for easier addition of agentic tools (MCP support coming). We will provide a new version of the documentation soon. Here is a couple of new things that you cannot miss!
 
 - FOR ALL USERS: You can do vault search out-of-the-box **without building an index first** (Indexing is still available but optional behind the "Semantic Search" toggle in QA settings).
-- FOR FREE USERS: Image support and chat context menu are available to all users starting from v3.0.0!
-- FOR PLUS USERS: **Autonomous agent** is available with vault search, web search, youtube, composer and soon a lot other tools! **Long-term memory** is also a tool the agent can use by itself starting from 3.1.0!
+- FOR ALL USERS: Image support and chat context menu are available to everyone starting from v3.0.0.
+- FOR ALL USERS: **Autonomous agent mode** now ships in the box with vault-aware tools and composer actions. No extra license, no remote dependencies.
 
 Read the [Changelog](https://github.com/logancyang/obsidian-copilot/releases/tag/3.0.0).
 
@@ -89,33 +92,14 @@ Read the [Changelog](https://github.com/logancyang/obsidian-copilot/releases/tag
 
 ### Set API Keys
 
-**Free User**
-
 1. Go to **Obsidian → Settings → Copilot → Basic** and click **Set Keys**.
 2. Choose your AI provider(s) (e.g., **OpenRouter, Gemini, OpenAI, Anthropic, Cohere**) and paste your API key(s). **OpenRouter is recommended.**
 
-**Copilot Plus/Believer**
-
-1. Copy your license key at your [dashboard](https://www.obsidiancopilot.com/en/dashboard). *Don’t forget to join our wonderful Discord community!*
-2. Go to **Obsidian → Settings → Copilot → Basic** and paste the key into in the **Copilot Plus** card.
-
 ## Usage
 
-### Table of Contents
-- [Free User](#free-user)
-  - [Chat Mode](#chat-mode-reference-notes-and-discuss-ideas-with-copilot)
-  - [Vault QA Mode](#vault-qa-mode-chat-with-your-entire-vault)
-  - [Command Palette](#copilots-command-palette)
-  - [Relevant Notes](#relevant-notes-notes-suggestions-based-on-semantic-similarity-and-links)
-- [Copilot Plus/Believer](#copilot-plusbeliever)
-  - [Time-Based Queries](#get-precision-insights-from-a-specific-time-window)
-  - [Agent Mode](#agent-mode-autonomous-tool-calling)
-  - [Image Understanding](#understand-images-in-your-notes)
-  - [Multi-Source Analysis](#one-prompt-every-sourceinstant-summaries-from-pdfs-videos-and-web)
+### Chat Mode
 
-### Free User
-
-#### **Chat Mode: reference notes and discuss ideas with Copilot**
+#### **Reference notes and discuss ideas with Copilot**
 
 Use `@` to add context and chat with your note.
 
@@ -124,23 +108,27 @@ Use `@` to add context and chat with your note.
 </p>
 
 Ask Copilot:
-  > *Summarize [[Q3 Retrospective]] and identify the top 3 action items for Q4 based on the notes in {01-Projects}.*
+
+> _Summarize [[Q3 Retrospective]] and identify the top 3 action items for Q4 based on the notes in {01-Projects}._
 
 <p align="center">
     <img src="./images/Chat-Mode.png" alt="Chat Mode" width="700">
 </p>
 
-#### **Vault QA Mode: chat with your entire vault**
+### Vault QA Mode
+
+#### **Chat with your entire vault**
 
 Ask Copilot:
-  > *What are the recurring themes in my research regarding the intersection of AI and SaaS?*
 
+> _What are the recurring themes in my research regarding the intersection of AI and SaaS?_
 
 <p align="center">
     <img src="./images/Vault-Mode.png" alt="Vault Mode" width="700">
 </p>
 
-#### Copilot's Command Palette
+### Copilot's Command Palette
+
 Copilot's Command Palette puts powerful AI capabilities at your fingertips. Access all commands in chat window via `/` or via
 right-click menu on selected text.
 
@@ -156,11 +144,9 @@ Select text and add it to context. Recommend shortcut: `ctrl/cmd + L`
 
 Select text and apply action without opening chat. Recommend shortcut: `ctrl/cmd + K`
 
-
 <p align="center">
     <img src="./images/Quick-Command.png" alt="Quick Command" width="700">
 </p>
-
 
 **Edit and Apply with One Click**
 
@@ -186,7 +172,7 @@ Type `/` to use Command Palette in chat window.
     <img src="./images/Prompt-Palette.png" alt="Prompt Palette" width="700">
 </p>
 
-#### **Relevant Notes: notes suggestions based on semantic similarity and links**
+### Relevant Notes
 
 Appears automatically when there's useful related content and links.
 
@@ -196,56 +182,22 @@ Use it to quickly reference past research, ideas, or decisions—no need to sear
     <img src="./images/Relevant-Notes.png" alt="Relevant Notes" width="700">
 </p>
 
-### Copilot Plus/Believer
+### Advanced Agent Mode: Autonomous Tool Calling
 
-Copilot Plus brings powerful AI agentic capabilities, context-aware actions and seamless tool integration—built to elevate your knowledge work in Obsidian.
-
-#### **Get Precision Insights From a Specific Time Window**
-
-In agent mode, ask copilot:
-
-  > *What did I do last week?*
-
-<p align="center">
-    <img src="./images/Time-Based-Queries.png" alt="Time-Based Queries" width="700">
-</p>
-
-#### **Agent Mode: Autonomous Tool Calling**
-
-Copilot's agent automatically calls the right tools—no manual commands needed. Just ask, and it searches the web, queries your vault, and combines insights seamlessly.
+Copilot's agent automatically calls the right vault-aware tools—no manual commands needed. Ask questions naturally and let Copilot reference the correct notes, folders, and selected context on your behalf.
 
 Ask Copilot in agent mode:
 
-  > *Research web and my vault and draft a note on AI SaaS onboarding best practices.*
+> _Review the research in [[AI SaaS Strategy]] plus anything tagged `#2024/planning` and draft a decision brief._
+
+Use it for:
+
+- Time-aware queries (e.g., _What did I ship last week?_)
+- Multi-note synthesis without hand-curating context
+- Running composer actions or note commands from chat
 
 <p align="center">
     <img src="./images/Agent-Mode.png" alt="Agent Mode" width="700">
-</p>
-
-#### **Understand Images in Your Notes**
-
-Copilot can analyze images embedded in your notes—from wireframes and diagrams to screenshots and photos. Get detailed feedback, suggestions, and insights based on visual content.
-
-Ask Copilot to analyze your wireframes:
-
-  > *Analyze the wireframe in [[UX Design - Mobile App Wireframes]] and suggest improvements for the navigation flow.*
-
-<p align="center">
-    <img src="./images/Note-Image.png" alt="Image Understanding" width="700">
-</p>
-
-#### **One Prompt, Every Source—Instant Summaries from PDFs, Videos, and Web**
-
-
-In agent mode, ask Copilot
-
-  > *Compare the information about [Agent Memory] from this youtube video: [URL], this PDF [file], and @web[search results]. Start with your
-     conclusion in bullet points in your response*
-
-
-
-<p align="center">
-    <img src="./images/One-Prompt-Every-Source.png" alt="One Prompt, Every Source" width="700">
 </p>
 
 ## **Need Help?**
@@ -272,7 +224,7 @@ In agent mode, ask Copilot
 <details>
   <summary><strong>Why isn’t Vault search finding my notes?</strong></summary>
 
-If you're using the Vault QA mode (or the tool <code>@vault</code> in Plus), try the following:
+If you're using the Vault QA mode (or the `@vault` tool in advanced mode), try the following:
 
 - Ensure you have a working embedding model from your AI model's provider (e.g. OpenAI). Watch this video: [AI Model Setup (API Key)](https://www.youtube.com/watch?v=mzMbiamzOqM)
 - Ensure your Copilot indexing is up-to-date. Watch this video: [Vault Mode](https://www.youtube.com/watch?v=hBLMWE8WRFU)
@@ -324,17 +276,6 @@ If you share the vision of building the most powerful AI agent for our second br
 **Acknowledgments**
 
 Special thanks to our top sponsors: @mikelaaron, @pedramamini, @Arlorean, @dashinja, @azagore, @MTGMAD, @gpythomas, @emaynard, @scmarinelli, @borthwick, @adamhill, @gluecode, @rusi, @timgrote, @JiaruiYu-Consilium, @ddocta, @AMOz1, @chchwy, @pborenstein, @GitTom, @kazukgw, @mjluser1, @joesfer, @rwaal, @turnoutnow-harpreet, @dreznicek, @xrise-informatik, @jeremygentles, @ZhengRui, @bfoujols, @jsmith0475, @pagiaddlemon, @sebbyyyywebbyyy, @royschwartz2, @vikram11, @amiable-dev, @khalidhalim, @DrJsPBs, @chishaku, @Andrea18500, @shayonpal, @rhm2k, @snorcup, @JohnBub, @obstinatelark, @jonashaefele, @vishnu2kmohan
-
-## **Copilot Plus Disclosure**
-
-Copilot Plus is a premium product of Brevilabs LLC and it is not affiliated with Obsidian. It offers a powerful agentic AI integration into Obsidian. Please check out our website [obsidiancopilot.com](https://obsidiancopilot.com/) for more details!
-
-- An account and payment are required for full access.
-- Copilot Plus requires network use to faciliate the AI agent.
-- Copilot Plus does not access your files without your consent.
-- Copilot Plus collect server-side telemetry to improve the product. Please see the privacy policy on the website for more details.
-- The frontend code of Copilot plugin is fully open-source. However, the backend code facilitating the AI agents is close-sourced and proprietary.
-- We offer a full refund if you are not satisfied with the product within 14 days of your purchase, no questions asked.
 
 ## **Authors**
 

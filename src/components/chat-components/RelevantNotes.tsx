@@ -25,6 +25,9 @@ import {
 } from "lucide-react";
 import { Notice, TFile } from "obsidian";
 import React, { memo, useCallback, useEffect, useState } from "react";
+import { useI18n } from "@/i18n";
+
+type Translator = ReturnType<typeof useI18n>["t"];
 
 function useRelevantNotes(refresher: number) {
   const [relevantNotes, setRelevantNotes] = useState<RelevantNoteEntry[]>([]);
@@ -87,10 +90,12 @@ function RelevantNote({
   note,
   onAddToChat,
   onNavigateToNote,
+  t,
 }: {
   note: RelevantNoteEntry;
   onAddToChat: () => void;
   onNavigateToNote: (openInNewLeaf: boolean) => void;
+  t: Translator;
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [fileContent, setFileContent] = useState<string | null>(null);
@@ -169,7 +174,7 @@ function RelevantNote({
               <PlusCircle className="tw-size-4" />
             </Button>
           </TooltipTrigger>
-          <TooltipContent>Add to Chat</TooltipContent>
+          <TooltipContent>{t("chat.common.addToChat")}</TooltipContent>
         </Tooltip>
       </div>
 
@@ -188,19 +193,23 @@ function RelevantNote({
         <div className="tw-flex tw-items-center tw-gap-4 tw-border-[0px] tw-border-t tw-border-solid tw-border-border tw-px-4 tw-py-2 tw-text-xs tw-text-muted">
           {note.metadata.similarityScore != null && (
             <div className="tw-flex tw-items-center tw-gap-1">
-              <span>Similarity: {(note.metadata.similarityScore * 100).toFixed(1)}%</span>
+              <span>
+                {t("chat.relevant.badge.similarity", {
+                  value: (note.metadata.similarityScore * 100).toFixed(1),
+                })}
+              </span>
             </div>
           )}
           {note.metadata.hasOutgoingLinks && (
             <div className="tw-flex tw-items-center tw-gap-1">
               <FileOutput className="tw-size-4" />
-              <span>Outgoing links</span>
+              <span>{t("chat.relevant.badge.outgoing")}</span>
             </div>
           )}
           {note.metadata.hasBacklinks && (
             <div className="tw-flex tw-items-center tw-gap-1">
               <FileInput className="tw-size-4" />
-              <span>Backlinks</span>
+              <span>{t("chat.relevant.badge.backlinks")}</span>
             </div>
           )}
         </div>
@@ -214,24 +223,28 @@ function RelevantNotePopover({
   onAddToChat,
   onNavigateToNote,
   children,
+  t,
 }: {
   note: RelevantNoteEntry;
   onAddToChat: () => void;
   onNavigateToNote: (openInNewLeaf: boolean) => void;
   children: React.ReactNode;
+  t: Translator;
 }) {
   return (
     <Popover key={note.document.path}>
       <PopoverTrigger asChild>{children}</PopoverTrigger>
       <PopoverContent className="tw-flex tw-w-fit tw-min-w-72 tw-max-w-96 tw-flex-col tw-gap-2 tw-overflow-hidden">
         <span className="tw-text-sm tw-text-normal">{note.document.title}</span>
-        <span className="tw-text-xs tw-text-muted">{note.document.path}</span>
+        <span className="tw-text-xs tw-text-muted">
+          {t("chat.relevant.preview.path", { path: note.document.path })}
+        </span>
         <div className="tw-flex tw-gap-2">
           <button
             onClick={onAddToChat}
             className="tw-inline-flex tw-items-center tw-gap-2 tw-border tw-border-solid tw-border-border !tw-bg-transparent !tw-shadow-none hover:!tw-bg-interactive-hover"
           >
-            Add to Chat <PlusCircle className="tw-size-4" />
+            {t("chat.common.addToChat")} <PlusCircle className="tw-size-4" />
           </button>
           <button
             onClick={(e) => {
@@ -240,7 +253,7 @@ function RelevantNotePopover({
             }}
             className="tw-inline-flex tw-items-center tw-gap-2 tw-border tw-border-solid tw-border-border !tw-bg-transparent !tw-shadow-none hover:!tw-bg-interactive-hover"
           >
-            Navigate to Note <ArrowRight className="tw-size-4" />
+            {t("chat.common.navigateToNote")} <ArrowRight className="tw-size-4" />
           </button>
         </div>
       </PopoverContent>
@@ -256,6 +269,7 @@ export const RelevantNotes = memo(
     const activeFile = useActiveFile();
     const chatInput = useChatInput();
     const hasIndex = useHasIndex(activeFile?.path ?? "", refresher);
+    const { t } = useI18n();
     const navigateToNote = (notePath: string, openInNewLeaf = false) => {
       const file = app.vault.getAbstractFileByPath(notePath);
       if (file instanceof TFile) {
@@ -270,7 +284,11 @@ export const RelevantNotes = memo(
       if (activeFile) {
         const VectorStoreManager = (await import("@/search/vectorStoreManager")).default;
         await VectorStoreManager.getInstance().reindexFile(activeFile);
-        new Notice(`Refreshed index for ${activeFile.basename}`);
+        new Notice(
+          t("chat.relevant.notice.refreshed", {
+            name: activeFile.basename,
+          })
+        );
         setRefresher(refresher + 1);
       }
     };
@@ -286,15 +304,15 @@ export const RelevantNotes = memo(
         <Collapsible open={isOpen} onOpenChange={setIsOpen}>
           <div className="tw-flex tw-items-center tw-justify-between tw-pb-2 tw-pl-1">
             <div className="tw-flex tw-flex-1 tw-items-center tw-gap-2">
-              <span className="tw-font-semibold tw-text-normal">Relevant Notes</span>
+              <span className="tw-font-semibold tw-text-normal">{t("chat.relevant.title")}</span>
               <HelpTooltip
-                content="Relevance is a combination of semantic similarity and links."
+                content={t("chat.relevant.tooltip.description")}
                 contentClassName="tw-w-64"
                 buttonClassName="tw-size-4 tw-text-muted"
               />
 
               {!hasIndex && (
-                <HelpTooltip content="Note has not been indexed" side="bottom">
+                <HelpTooltip content={t("chat.tooltip.notIndexed")} side="bottom">
                   <TriangleAlert className="tw-size-4 tw-text-warning" />
                 </HelpTooltip>
               )}
@@ -306,7 +324,7 @@ export const RelevantNotes = memo(
                     <RefreshCcw className="tw-size-4" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent side="bottom">Reindex Current Note</TooltipContent>
+                <TooltipContent side="bottom">{t("chat.tooltip.refreshNote")}</TooltipContent>
               </Tooltip>
               {relevantNotes.length > 0 && (
                 <CollapsibleTrigger asChild>
@@ -324,9 +342,7 @@ export const RelevantNotes = memo(
           {relevantNotes.length === 0 && (
             <div className="tw-flex tw-max-h-12 tw-flex-wrap tw-gap-x-2 tw-gap-y-1 tw-overflow-y-hidden tw-px-1">
               <span className="tw-text-xs tw-text-muted">
-                {!hasIndex
-                  ? "No index available. Click refresh to build index."
-                  : "No relevant notes found"}
+                {!hasIndex ? t("chat.relevant.empty.noIndex") : t("chat.relevant.empty.noResults")}
               </span>
             </div>
           )}
@@ -340,6 +356,7 @@ export const RelevantNotes = memo(
                   onNavigateToNote={(openInNewLeaf: boolean) =>
                     navigateToNote(note.document.path, openInNewLeaf)
                   }
+                  t={t}
                 >
                   <Badge
                     variant="outline"
@@ -362,6 +379,7 @@ export const RelevantNotes = memo(
                   onNavigateToNote={(openInNewLeaf: boolean) =>
                     navigateToNote(note.document.path, openInNewLeaf)
                   }
+                  t={t}
                 />
               ))}
             </div>

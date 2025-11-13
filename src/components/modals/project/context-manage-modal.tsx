@@ -33,6 +33,7 @@ import { App, Modal, Notice, Platform, TFile } from "obsidian";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createRoot, Root } from "react-dom/client";
 import { HelpTooltip } from "@/components/ui/help-tooltip";
+import { useI18n, translate } from "@/i18n";
 
 function FileIcon({ extension, size = "tw-size-4" }: { extension: string; size?: string }) {
   const ext = extension.toLowerCase().replace("*.", "");
@@ -196,7 +197,12 @@ function ItemCard({ item, viewMode, onDelete }: ItemCardProps) {
       </div>
       <div className="tw-flex tw-min-w-0 tw-flex-1 tw-flex-col">
         <TruncatedText className="tw-flex-1 tw-text-sm tw-font-medium">
-          {item.isIgnored && <span className="tw-text-sm tw-text-error"> (Ignored files)</span>}
+          {item.isIgnored && (
+            <span className="tw-text-sm tw-text-error">
+              {" "}
+              ({translate("modal.projectContext.ignoredFiles")})
+            </span>
+          )}
           {item.name}
         </TruncatedText>
         {item.id && (
@@ -257,7 +263,10 @@ function CategoryItemCard({
           {item.name}
         </TruncatedText>
         <TruncatedText className="tw-flex-1 tw-text-xs tw-text-faint">
-          {item.count} {item.count === 1 ? "item" : "items"}
+          {item.count}{" "}
+          {item.count === 1
+            ? translate("modal.projectContext.item")
+            : translate("modal.projectContext.items")}
         </TruncatedText>
       </div>
     </div>
@@ -303,6 +312,7 @@ function isCategoryItem(item: DisplayItem): item is CategoryItem {
 }
 
 function ContextManage({ initialProject, onSave, onCancel, app }: ContextManageProps) {
+  const { t } = useI18n();
   const isMobile = Platform.isMobile;
   const { inclusions: inclusionPatterns, exclusions: exclusionPatterns } = useMemo(() => {
     return getMatchingPatterns({
@@ -639,7 +649,7 @@ function ContextManage({ initialProject, onSave, onCancel, app }: ContextManageP
           ? [
               {
                 id: "files:all",
-                name: "Files",
+                name: translate("modal.projectContext.files"),
                 type: "files",
                 count: groupList.notes.length,
               },
@@ -651,7 +661,7 @@ function ContextManage({ initialProject, onSave, onCancel, app }: ContextManageP
           ? [
               {
                 id: "ignoreFiles:all",
-                name: "Ignore Files",
+                name: translate("modal.projectContext.ignoreFiles"),
                 type: "ignoreFiles",
                 count: ignoreItems.files.size,
               },
@@ -828,7 +838,7 @@ function ContextManage({ initialProject, onSave, onCancel, app }: ContextManageP
 
         extension: () => {
           // todo(emt-lin)：maybe use this in the future
-          new Notice("Adding extension is temporarily not supported.");
+          new Notice(translate("modal.projectContext.extensionNotSupported"));
           return;
           /*new ExtensionInputModal(app, (extension: string) => {
             if (extension.trim() === "") return;
@@ -908,19 +918,19 @@ function ContextManage({ initialProject, onSave, onCancel, app }: ContextManageP
   );
 
   const getDisplayTitle = () => {
-    if (searchTerm) return `Search Results for: "${searchTerm}"`;
+    if (searchTerm) return t("modal.projectContext.searchResults", { query: searchTerm });
     if (activeSection === "tags" && activeItem) {
-      return `Tag: ${activeItem}`;
+      return t("modal.projectContext.tag", { tag: activeItem });
     }
     if (activeSection === "folders" && activeItem) {
-      return `Folder: ${activeItem}`;
+      return t("modal.projectContext.folder", { folder: activeItem });
     }
-    if (activeSection === "files") return "Files";
+    if (activeSection === "files") return t("modal.projectContext.files");
     if (activeSection === "extensions" && activeItem) {
-      return `Extension: ${activeItem}`;
+      return t("modal.projectContext.extension", { extension: activeItem });
     }
-    if (activeSection === "ignoreFiles") return "Ignore Files";
-    return "All Categories";
+    if (activeSection === "ignoreFiles") return t("modal.projectContext.ignoreFiles");
+    return t("modal.projectContext.allCategories");
   };
 
   const handleDeleteItem = (e: React.MouseEvent, item: GroupItem) => {
@@ -996,14 +1006,16 @@ function ContextManage({ initialProject, onSave, onCancel, app }: ContextManageP
           <div className="tw-flex tw-h-full tw-flex-col">
             {/* Header */}
             <div className="tw-border-b tw-p-4">
-              <h2 className="tw-text-lg tw-font-semibold">File Context</h2>
+              <h2 className="tw-text-lg tw-font-semibold">
+                {t("modal.projectContext.fileContext")}
+              </h2>
             </div>
 
             <ScrollArea className="tw-max-h-[500px] tw-flex-1">
               <div className="tw-space-y-6 tw-p-4">
                 {/* Tags Section */}
                 <SectionList
-                  title="Tags"
+                  title={t("modal.projectContext.tags")}
                   IconComponent={TagIcon}
                   iconColorClassName="tw-text-context-manager-orange"
                   items={makeSectionItem(groupList.tags, (name) => name.slice(1))}
@@ -1014,14 +1026,14 @@ function ContextManage({ initialProject, onSave, onCancel, app }: ContextManageP
                   onItemClick={groupHandlers.click.tag}
                   onAddClick={groupHandlers.add.tag}
                   onDeleteItem={(e, item) => groupHandlers.delete.tag(e, item)}
-                  tooltip="must be in note property"
+                  tooltip={t("modal.projectContext.tooltip.mustBeInProperty")}
                 />
 
                 <Separator />
 
                 {/* Folders Section */}
                 <SectionList
-                  title="Folders"
+                  title={t("modal.projectContext.folders")}
                   IconComponent={FolderIcon}
                   iconColorClassName="tw-text-context-manager-yellow"
                   items={makeSectionItem(groupList.folders)}
@@ -1039,7 +1051,7 @@ function ContextManage({ initialProject, onSave, onCancel, app }: ContextManageP
                 <div>
                   <SectionHeader
                     IconComponent={FileText}
-                    title="Files"
+                    title={t("modal.projectContext.files")}
                     iconColorClassName="tw-text-context-manager-blue"
                     onAddClick={groupHandlers.add.file}
                   />
@@ -1050,7 +1062,7 @@ function ContextManage({ initialProject, onSave, onCancel, app }: ContextManageP
                     )}
                     onClick={groupHandlers.click.files}
                   >
-                    Files ({groupList.notes.length})
+                    {t("modal.projectContext.files")} ({groupList.notes.length})
                   </div>
                 </div>
 
@@ -1078,7 +1090,7 @@ function ContextManage({ initialProject, onSave, onCancel, app }: ContextManageP
                 <div>
                   <SectionHeader
                     IconComponent={XIcon}
-                    title="Ignore Files"
+                    title={t("modal.projectContext.ignoreFiles")}
                     iconColorClassName="tw-text-context-manager-red"
                     onAddClick={groupHandlers.add.ignoreFile}
                   />
@@ -1089,7 +1101,7 @@ function ContextManage({ initialProject, onSave, onCancel, app }: ContextManageP
                     )}
                     onClick={groupHandlers.click.ignoreFiles}
                   >
-                    Files ({ignoreItems.files.size})
+                    {t("modal.projectContext.files")} ({ignoreItems.files.size})
                   </div>
                 </div>
               </div>
@@ -1105,7 +1117,7 @@ function ContextManage({ initialProject, onSave, onCancel, app }: ContextManageP
             {/* Header */}
             <div className="tw-border-b tw-p-4">
               <SearchBar
-                placeholder="Custom search: title, #tag1, .jpg"
+                placeholder={t("modal.projectContext.placeholder")}
                 value={searchTerm}
                 onChange={(v) => {
                   setSearchTerm(v);
@@ -1126,8 +1138,8 @@ function ContextManage({ initialProject, onSave, onCancel, app }: ContextManageP
               {getDisplayItems.length === 0 ? (
                 <div className="tw-mt-10 tw-text-center tw-text-muted">
                   {activeSection
-                    ? "No items found."
-                    : "No categories found. Add tags, folders, or files using the sidebar."}
+                    ? t("modal.projectContext.empty")
+                    : t("modal.projectContext.noCategoriesEmpty")}
                 </div>
               ) : (
                 <div className="tw-space-y-2" style={{ display: "block" }}>
@@ -1169,9 +1181,9 @@ function ContextManage({ initialProject, onSave, onCancel, app }: ContextManageP
       </ResizablePanelGroup>
       <div className="tw-flex tw-justify-end tw-gap-2 tw-border-t tw-p-1">
         <Button variant="ghost" onClick={onCancel}>
-          Cancel
+          {t("modal.projectContext.cancel")}
         </Button>
-        <Button onClick={handleSave}>Save</Button>
+        <Button onClick={handleSave}>{t("modal.projectContext.save")}</Button>
       </div>
     </div>
   );

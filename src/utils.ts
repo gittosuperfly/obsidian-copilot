@@ -1,17 +1,15 @@
 import { ChainType, Document } from "@/chainFactory";
 import {
   ChatModelProviders,
-  EmbeddingModelProviders,
   NOMIC_EMBED_TEXT,
   Provider,
   ProviderInfo,
   ProviderMetadata,
-  ProviderSettingsKeyMap,
-  SettingKeyProviders,
   USER_SENDER,
 } from "@/constants";
 import { logInfo } from "@/logger";
 import { CopilotSettings } from "@/settings/model";
+import { getProviderForModel, getModelKeyFromModel } from "@/aiParams";
 import { ChatMessage } from "@/types/message";
 import { BaseChatModel } from "@langchain/core/language_models/chat_models";
 import { MemoryVariables } from "@langchain/core/memory";
@@ -194,7 +192,7 @@ export const stringToChainType = (chain: string): ChainType => {
     case "vault_qa":
       return ChainType.VAULT_QA_CHAIN;
     case "copilot_plus":
-      return ChainType.COPILOT_PLUS_CHAIN;
+      return ChainType.ADVANCED_CHAIN;
     default:
       throw new Error(`Unknown chain type: ${chain}`);
   }
@@ -338,8 +336,8 @@ export function isAllowedFileForNoteContext(file: TFile | null): boolean {
  * @param chainType The chain type to check
  * @returns true if this is a Plus mode chain, false otherwise
  */
-export function isPlusChain(chainType: ChainType): boolean {
-  return chainType === ChainType.COPILOT_PLUS_CHAIN || chainType === ChainType.PROJECT_CHAIN;
+export function isAdvancedChain(chainType: ChainType): boolean {
+  return chainType === ChainType.ADVANCED_CHAIN || chainType === ChainType.PROJECT_CHAIN;
 }
 
 /**
@@ -361,7 +359,7 @@ export function isAllowedFileForChainContext(file: TFile | null, chainType: Chai
 
   // Plus chains support all other file types (PDF, EPUB, PPT, DOCX, etc.)
   // Free chains only support markdown and canvas
-  return isPlusChain(chainType);
+  return isAdvancedChain(chainType);
 }
 
 export async function getAllNotesContent(vault: Vault): Promise<string> {
@@ -610,97 +608,6 @@ export function extractJsonFromCodeBlock(content: string): any {
   return JSON.parse(jsonContent);
 }
 
-const YOUTUBE_URL_REGEX =
-  /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:watch\?v=|shorts\/)|youtu\.be\/)([^\s&]+)/;
-
-/**
- * Validates a YouTube URL and returns detailed validation result
- */
-export function validateYoutubeUrl(url: string): {
-  isValid: boolean;
-  error?: string;
-  videoId?: string;
-} {
-  if (!url || typeof url !== "string") {
-    return { isValid: false, error: "URL is required" };
-  }
-
-  const trimmedUrl = url.trim();
-  if (!trimmedUrl) {
-    return { isValid: false, error: "URL cannot be empty" };
-  }
-
-  // Extract video ID
-  const videoId = extractYoutubeVideoId(trimmedUrl);
-  if (!videoId) {
-    return { isValid: false, error: "Invalid YouTube URL format" };
-  }
-
-  // Check if video ID is valid (11 characters, alphanumeric with dashes and underscores)
-  if (!/^[a-zA-Z0-9_-]{11}$/.test(videoId)) {
-    return { isValid: false, error: "Invalid YouTube video ID" };
-  }
-
-  return { isValid: true, videoId };
-}
-
-/**
- * Extract YouTube video ID from various URL formats
- */
-export function extractYoutubeVideoId(url: string): string | null {
-  try {
-    // Handle different YouTube URL formats
-    const patterns = [
-      /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/v\/)([a-zA-Z0-9_-]{11})/,
-      /youtube\.com\/shorts\/([a-zA-Z0-9_-]{11})/,
-    ];
-
-    for (const pattern of patterns) {
-      const match = url.match(pattern);
-      if (match && match[1]) {
-        return match[1];
-      }
-    }
-
-    return null;
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Create a standard YouTube URL from video ID
- */
-export function formatYoutubeUrl(videoId: string): string {
-  return `https://www.youtube.com/watch?v=${videoId}`;
-}
-
-/**
- * Check if a string is a valid YouTube URL (legacy function for backward compatibility)
- */
-export function isYoutubeUrl(url: string): boolean {
-  return validateYoutubeUrl(url).isValid;
-}
-
-/**
- * Extract first YouTube URL from text (legacy function for backward compatibility)
- */
-export function extractYoutubeUrl(text: string): string | null {
-  const match = text.match(YOUTUBE_URL_REGEX);
-  return match ? match[0] : null;
-}
-
-/**
- * Extract all YouTube URLs from text (legacy function for backward compatibility)
- */
-export function extractAllYoutubeUrls(text: string): string[] {
-  const matches = text.matchAll(new RegExp(YOUTUBE_URL_REGEX, "g"));
-  return Array.from(matches, (match) => match[0]);
-}
-
-/** Proxy function to use in place of fetch() to bypass CORS restrictions.
- * It currently doesn't support streaming until this is implemented
- * https://forum.obsidian.md/t/support-streaming-the-request-and-requesturl-response-body/87381 */
 export async function safeFetch(url: string, options: RequestInit = {}): Promise<Response> {
   // Initialize headers if not provided
   const normalizedHeaders = new Headers(options.headers);
@@ -827,8 +734,8 @@ export function omit<T extends Record<string, any>, K extends keyof T>(
 }
 
 export function findCustomModel(modelKey: string, activeModels: CustomModel[]): CustomModel {
-  const [modelName, provider] = modelKey.split("|");
-  const model = activeModels.find((m) => m.name === modelName && m.provider === provider);
+  // Model key format is now "modelName@providerId"
+  const model = activeModels.find((m) => getModelKeyFromModel(m) === modelKey);
   if (!model) {
     throw new Error(`No model configuration found for: ${modelKey}`);
   }
@@ -844,8 +751,7 @@ export function getProviderInfo(provider: string): ProviderMetadata {
 }
 
 export function getProviderLabel(provider: string, model?: CustomModel): string {
-  const baseLabel = ProviderInfo[provider as Provider]?.label || provider;
-  return baseLabel + (model?.believerExclusive && baseLabel === "Copilot Plus" ? "(Believer)" : "");
+  return ProviderInfo[provider as Provider]?.label || provider;
 }
 
 export function getProviderHost(provider: string): string {
@@ -1032,8 +938,6 @@ export function getNeedSetKeyProvider() {
     ChatModelProviders.OLLAMA,
     ChatModelProviders.LM_STUDIO,
     ChatModelProviders.AZURE_OPENAI,
-    EmbeddingModelProviders.COPILOT_PLUS,
-    EmbeddingModelProviders.COPILOT_PLUS_JINA,
   ];
 
   return Object.entries(ProviderInfo)
@@ -1048,31 +952,19 @@ export function checkModelApiKey(
   hasApiKey: boolean;
   errorNotice?: string;
 } {
-  if (model.provider === ChatModelProviders.AMAZON_BEDROCK) {
-    const apiKey = model.apiKey || settings.amazonBedrockApiKey;
-    if (!apiKey) {
-      return {
-        hasApiKey: false,
-        errorNotice:
-          "Amazon Bedrock API key is missing. Please add a key in Settings > API Keys or update the model configuration.",
-      };
-    }
+  const provider = getProviderForModel(model, settings.providers);
 
-    // Region defaults to us-east-1 if not specified, so API key is the only required check
-    return { hasApiKey: true };
-  }
-
-  const needSetKeyPath = !!getNeedSetKeyProvider().find((provider) => provider === model.provider);
-  const providerKeyName = ProviderSettingsKeyMap[model.provider as SettingKeyProviders];
-  const hasNoApiKey = !model.apiKey && !settings[providerKeyName];
-
-  if (needSetKeyPath && hasNoApiKey) {
-    const notice =
-      `Please configure API Key for ${model.name} in settings first.` +
-      "\nPath: Settings > copilot plugin > Basic Tab > Set Keys";
+  if (!provider) {
     return {
       hasApiKey: false,
-      errorNotice: notice,
+      errorNotice: `Provider not found for model: ${model.name}. Please configure a provider first.`,
+    };
+  }
+
+  if (!provider.apiKey) {
+    return {
+      hasApiKey: false,
+      errorNotice: `API Key is missing for provider: ${provider.name}. Please add an API key in provider settings.`,
     };
   }
 

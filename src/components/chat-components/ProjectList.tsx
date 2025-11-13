@@ -31,6 +31,7 @@ import { App, Notice } from "obsidian";
 import React, { memo, useEffect, useMemo, useState } from "react";
 import { filterProjects } from "@/utils/projectUtils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useI18n, translate } from "@/i18n";
 
 function ProjectItem({
   project,
@@ -43,6 +44,8 @@ function ProjectItem({
   onEdit: (project: ProjectConfig) => void;
   onDelete: (project: ProjectConfig) => void;
 }) {
+  const { t } = useI18n();
+
   return (
     <div
       className="tw-group tw-flex tw-cursor-pointer tw-items-center tw-justify-between tw-gap-2 tw-rounded-lg tw-border tw-border-solid tw-border-border tw-p-3 tw-transition-all tw-duration-200 tw-bg-secondary/40 hover:tw-border-interactive-accent hover:tw-text-accent hover:tw-shadow-[0_2px_12px_rgba(0,0,0,0.1)] active:tw-scale-[0.98]"
@@ -77,7 +80,7 @@ function ProjectItem({
               <Edit2 className="tw-size-4" />
             </Button>
           </TooltipTrigger>
-          <TooltipContent side="bottom">Edit Project</TooltipContent>
+          <TooltipContent side="bottom">{t("projectList.editProject")}</TooltipContent>
         </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>
@@ -92,7 +95,7 @@ function ProjectItem({
               <MessageSquare className="tw-size-4" />
             </Button>
           </TooltipTrigger>
-          <TooltipContent side="bottom">Start Chat</TooltipContent>
+          <TooltipContent side="bottom">{t("projectList.startChat")}</TooltipContent>
         </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>
@@ -104,8 +107,8 @@ function ProjectItem({
                 const modal = new ConfirmModal(
                   app,
                   () => onDelete(project),
-                  `Are you sure you want to delete project "${project.name}"?`,
-                  "Delete Project"
+                  translate("projectList.deleteConfirm", { name: project.name }),
+                  translate("projectList.deleteTitle")
                 );
                 modal.open();
               }}
@@ -113,7 +116,7 @@ function ProjectItem({
               <Trash2 className="tw-size-4" />
             </Button>
           </TooltipTrigger>
-          <TooltipContent side="bottom">Delete Project</TooltipContent>
+          <TooltipContent side="bottom">{t("projectList.deleteProject")}</TooltipContent>
         </Tooltip>
       </div>
     </div>
@@ -144,6 +147,7 @@ export const ProjectList = memo(
     onClose: () => void;
     onProjectClose: () => void;
   }): React.ReactElement => {
+    const { t } = useI18n();
     const [isOpen, setIsOpen] = useState(defaultOpen);
     const [showChatInput, setShowChatInput] = useState(false);
     const [selectedProject, setSelectedProject] = useState<ProjectConfig | null>(null);
@@ -194,7 +198,7 @@ export const ProjectList = memo(
 
       // Update the project list in settings
       updateSetting("projectList", newProjectList);
-      new Notice(`Project "${project.name}" deleted successfully`);
+      new Notice(translate("projectList.deleteSuccess", { name: project.name }));
     };
 
     const enableOrDisableProject = (enable: boolean, project?: ProjectConfig) => {
@@ -235,7 +239,7 @@ export const ProjectList = memo(
             {showChatInput && selectedProject ? (
               <div className="tw-flex tw-items-center tw-justify-between tw-px-2 tw-py-3">
                 <div className="tw-flex tw-min-w-0 tw-items-center tw-gap-2">
-                  <span className="tw-font-semibold tw-text-normal">Projects</span>
+                  <span className="tw-font-semibold tw-text-normal">{t("projectList.title")}</span>
                   <Select
                     value={selectedProject.name}
                     onValueChange={(value) => {
@@ -276,7 +280,7 @@ export const ProjectList = memo(
                     className="hover:tw-text-on-accent hover:tw-bg-accent/50"
                   >
                     <Edit2 className="tw-mr-1 tw-size-4" />
-                    Edit
+                    {t("projectList.edit")}
                   </Button>
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -287,12 +291,14 @@ export const ProjectList = memo(
                           enableOrDisableProject(false);
                           onProjectClose();
                         }}
-                        aria-label="Close Current Project"
+                        aria-label={t("projectList.closeCurrentProject")}
                       >
                         <X className="tw-size-4" />
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent side="bottom">Close Current Project</TooltipContent>
+                    <TooltipContent side="bottom">
+                      {t("projectList.closeCurrentProject")}
+                    </TooltipContent>
                   </Tooltip>
                 </div>
               </div>
@@ -304,16 +310,18 @@ export const ProjectList = memo(
               >
                 <div className="tw-flex tw-items-center tw-justify-between tw-px-4 tw-py-3">
                   <div className="tw-flex tw-flex-1 tw-items-center tw-gap-2">
-                    <span className="tw-font-semibold tw-text-normal">Projects</span>
+                    <span className="tw-font-semibold tw-text-normal">
+                      {t("projectList.title")}
+                    </span>
                     <HelpTooltip
-                      content="Manage your projects with different contexts and configurations."
+                      content={t("projectList.helpTooltip")}
                       contentClassName="tw-w-64"
                       buttonClassName="tw-size-4 tw-text-muted"
                     />
                   </div>
                   <div className="tw-flex tw-items-center tw-gap-2">
                     <Button className="tw-px-2" variant="secondary" onClick={handleAddProject}>
-                      Create
+                      {t("projectList.create")}
                       <Plus className="tw-size-3" />
                     </Button>
                     {projects.length > 0 && (
@@ -333,18 +341,20 @@ export const ProjectList = memo(
                           variant="ghost2"
                           size="icon"
                           onClick={() => onClose()}
-                          aria-label="close project mode"
+                          aria-label={t("projectList.closeProjectMode")}
                         >
                           <X className="tw-size-4" />
                         </Button>
                       </TooltipTrigger>
-                      <TooltipContent side="bottom">Close Project Mode</TooltipContent>
+                      <TooltipContent side="bottom">
+                        {t("projectList.closeProjectMode")}
+                      </TooltipContent>
                     </Tooltip>
                   </div>
                 </div>
                 {projects.length === 0 && (
                   <div className="tw-px-4 tw-py-2 tw-text-xs tw-text-muted tw-bg-secondary/30">
-                    No projects available
+                    {t("projectList.noProjects")}
                   </div>
                 )}
                 <CollapsibleContent className="tw-transition-all tw-duration-200 tw-ease-in-out">
@@ -356,7 +366,7 @@ export const ProjectList = memo(
                           <SearchBar
                             value={searchQuery}
                             onChange={setSearchQuery}
-                            placeholder="Search projects..."
+                            placeholder={t("projectList.searchPlaceholder")}
                           />
                         </div>
                       </div>
@@ -377,9 +387,11 @@ export const ProjectList = memo(
                       {searchQuery.trim() && filteredProjects.length === 0 && (
                         <div className="tw-flex tw-flex-col tw-items-center tw-justify-center tw-py-8 tw-text-muted">
                           <Search className="tw-mb-3 tw-size-12 tw-text-muted/50" />
-                          <p className="tw-text-base tw-font-medium">No matching projects found</p>
+                          <p className="tw-text-base tw-font-medium">
+                            {t("projectList.noMatchingProjects")}
+                          </p>
                           <p className="tw-mt-1 tw-text-sm">
-                            Try searching with different keywords
+                            {t("projectList.tryDifferentKeywords")}
                           </p>
                         </div>
                       )}
@@ -396,14 +408,11 @@ export const ProjectList = memo(
           {!showChatInput && (
             <div className="tw-flex tw-flex-col tw-items-center tw-justify-center tw-gap-4 tw-p-8 tw-text-muted tw-bg-secondary/30">
               <div className="tw-max-w-[600px] tw-space-y-4">
-                <p className="tw-text-center tw-text-base">
-                  Create your project-based AI assistants with custom instructions, context, and
-                  model configurations.
-                </p>
+                <p className="tw-text-center tw-text-base">{t("projectList.description")}</p>
                 <div className="tw-flex tw-flex-col tw-gap-3 tw-text-sm">
                   <div className="tw-flex tw-items-center tw-gap-2">
                     <MessageSquare className="tw-size-4" />
-                    <span>Click a project card to start chatting</span>
+                    <span>{t("projectList.clickToChat")}</span>
                   </div>
                 </div>
               </div>

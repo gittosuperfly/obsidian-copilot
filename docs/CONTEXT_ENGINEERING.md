@@ -116,7 +116,7 @@ Turn 3: User keeps project-spec.md only
 3. **Phase 3: ChainRunner Migration**
    - ✅ `LLMChainRunner` envelope-based
    - ✅ `VaultQAChainRunner` envelope-based
-   - ✅ `CopilotPlusChainRunner` envelope-based with uniform tool handling
+   - ✅ `AdvancedChainRunner` envelope-based with uniform tool handling
    - ✅ `AutonomousAgentChainRunner` envelope-based with iterative tool loop
    - ✅ `ProjectChainRunner` envelope-based with project context in L1
 
@@ -125,7 +125,7 @@ Turn 3: User keeps project-spec.md only
 **System Message** = L1 (system prompt) + L2 (Context Library) ONLY
 **User Message** = Tool results + L3 (smart refs) + L5 (user query)
 
-All tools (`localSearch`, `webSearch`, `getFileTree`, etc.) are treated uniformly:
+All tools (`localSearch`, `getFileTree`, etc.) are treated uniformly:
 
 - Wrapped as `<toolName>content</toolName>`
 - Prepended to user message using CiC (Context in Context) format
@@ -161,10 +161,10 @@ All tools (`localSearch`, `webSearch`, `getFileTree`, etc.) are treated uniforml
 - Applies CiC ordering so the user question follows retrieved documents.
 - Multimodal handling respects envelope rules (images only from active note).
 
-### CopilotPlusChainRunner
+### AdvancedChainRunner
 
 - Intent analysis still Broca-based (ToolCallPlanner pending), but prompt assembly is envelope-first.
-- All tool outputs (localSearch, webSearch, file tree, etc.) formatted uniformly and prepended to user message.
+- All tool outputs (localSearch, file tree, etc.) formatted uniformly and prepended to user message.
 - LocalSearch payload is self-contained: includes RAG instruction, documents, and citation guidance all within the `<localSearch>` block.
 - Each localSearch call carries its own guidance block (source catalog + citation rules), ensuring correct citations in multi-search turns.
 - Composer instructions appended once to avoid duplication; payload recorder captures tool XML alongside L3/L5.
@@ -180,7 +180,7 @@ All tools (`localSearch`, `webSearch`, `getFileTree`, etc.) are treated uniforml
 
 - Fully migrated to envelope-based context construction.
 - Project context automatically added to L1 via `ChatManager.getSystemPromptForMessage()`.
-- No special-case logic needed - inherits all behavior from `CopilotPlusChainRunner`.
+- No special-case logic needed - inherits all behavior from `AdvancedChainRunner`.
 
 #### Implementation
 
@@ -214,10 +214,10 @@ All tools (`localSearch`, `webSearch`, `getFileTree`, etc.) are treated uniforml
    When `ProjectManager.instance.getProjectContext()` returns `null` (e.g., context still loading or cache miss), the `<project_context>` block is omitted entirely rather than interpolating the literal string "null" into L1.
 
 3. **Envelope integration.**
-   The helper's return value is passed into `processMessageContext` / `reprocessMessageContext`. `PromptContextEngine` serializes the full string into the L1 layer, so `ProjectChainRunner` drops its bespoke `getSystemPrompt` override and reuses the envelope just like Copilot Plus.
+   The helper's return value is passed into `processMessageContext` / `reprocessMessageContext`. `PromptContextEngine` serializes the full string into the L1 layer, so `ProjectChainRunner` drops its bespoke `getSystemPrompt` override and reuses the envelope just like the Advanced chain.
 
 4. **Simplified ProjectChainRunner.**
-   The class is now just a pass-through to `CopilotPlusChainRunner` with no overrides - project context automatically appears in L1 via `ChatManager`.
+   The class is now just a pass-through to `AdvancedChainRunner` with no overrides - project context automatically appears in L1 via `ChatManager`.
 
 ---
 
@@ -324,7 +324,7 @@ messages.push({
 // User message: Tools + L3 + L5
 const toolContext = formatAllToolOutputs(allToolOutputs); // Uniform for all tools
 const finalUserContent = renderCiCMessage(
-  toolContext, // <localSearch>...</localSearch>\n<webSearch>...</webSearch>
+  toolContext, // <localSearch>...</localSearch>
   userMessageContent.content, // L3 smart refs + L5
   false
 );
@@ -346,10 +346,6 @@ Answer the question based only on the following context:
 [Citation rules and source catalog...]
 </guidance>
 </localSearch>
-
-<webSearch>
-[Web search results...]
-</webSearch>
 ```
 
 **Key Points**:
@@ -370,7 +366,7 @@ Answer the question based only on the following context:
 - Uses user's chat model instead of Broca API
 - Input: L5 + L3 summary (metadata only, not full content)
 - Output: JSON tool-call array with schema validation
-- Shared between CopilotPlus and Agent chains
+- Shared between Advanced and Agent chains
 
 ---
 
@@ -403,7 +399,7 @@ Answer the question based only on the following context:
 
 **Constraint**: Image extraction must read from envelope, not raw message.
 
-**Solution** (CopilotPlusChainRunner):
+**Solution** (AdvancedChainRunner):
 
 ```typescript
 // Extract images from active note ONLY (in L3)
@@ -571,7 +567,7 @@ if (currentTurnContext) {
 
 - LLM chain envelope migration
 - VaultQA chain envelope migration
-- CopilotPlus chain envelope migration + uniform tools
+- Advanced chain envelope migration + uniform tools
 - Agent chain envelope migration + iterative tool loop
 - Payload logging with layered view
 
@@ -583,11 +579,11 @@ if (currentTurnContext) {
 
 ### Agent Chain Runner Implementation
 
-**Goal**: Integrate the autonomous agent chain with the layered context system, following the same envelope-first architecture as CopilotPlus while preserving the iterative tool execution loop.
+**Goal**: Integrate the autonomous agent chain with the layered context system, following the same envelope-first architecture as the Advanced chain while preserving the iterative tool execution loop.
 
 **Implementation** (Completed 2025-01-27):
 
-The agent chain integration follows the CopilotPlus pattern with minimal changes to support the unique iterative tool loop:
+The agent chain integration follows the Advanced chain pattern with minimal changes to support the unique iterative tool loop:
 
 **1. Envelope Extraction & Validation**
 
@@ -616,7 +612,7 @@ const systemContent = [
 **3. Initial User Message Assembly**
 
 - Extract L3 (smart references) + L5 (user query) from converter
-- Build multimodal content if images present (inherited from CopilotPlus)
+- Build multimodal content if images present (inherited from the Advanced chain)
 - No adapter enhancement needed (envelope contains formatted content)
 
 **4. Original Prompt Extraction**
@@ -638,11 +634,11 @@ const systemContent = [
 - **Tool system preserved**: All tool execution, streaming, and display logic unchanged
 - **Message structure**: System (L1+L2+tools) → History → User (L3+L5) → Agent loop
 - **Tool results**: Continue to be added to conversation messages, never promoted to L2
-- **Multimodal support**: Image extraction inherited from CopilotPlus base class
+- **Multimodal support**: Image extraction inherited from the Advanced chain base class
 
-**Differences from CopilotPlus**:
+**Differences from the Advanced chain**:
 
-| Aspect             | CopilotPlus                               | Agent                                       |
+| Aspect             | Advanced Chain                            | Agent                                       |
 | ------------------ | ----------------------------------------- | ------------------------------------------- |
 | **Tool Execution** | Pre-run (single batch via IntentAnalyzer) | Iterative loop (multi-turn)                 |
 | **Tool Results**   | Formatted once, prepended to user message | Accumulated across iterations               |

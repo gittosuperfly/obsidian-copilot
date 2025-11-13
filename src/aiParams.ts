@@ -40,7 +40,7 @@ const projectLoadingAtom = atom<boolean>(false);
 
 export interface FailedItem {
   path: string;
-  type: "md" | "web" | "youtube" | "nonMd";
+  type: "md" | "nonMd";
   error?: string;
   timestamp?: number;
 }
@@ -74,8 +74,6 @@ export interface ProjectConfig {
   contextSource: {
     inclusions?: string;
     exclusions?: string;
-    webUrls?: string;
-    youtubeUrls?: string;
   };
   created: number;
   UsageTimestamps: number;
@@ -113,45 +111,137 @@ export interface SetChainOptions {
   refreshIndex?: boolean;
 }
 
-export interface CustomModel {
+/**
+ * ModelProvider represents a service provider (e.g., OpenAI, Kimi, Anthropic).
+ * Each provider can host multiple models.
+ */
+export interface ModelProvider {
+  /** Unique identifier (UUID) */
+  id: string;
+  /** Display name (e.g., "OpenAI", "Kimi", "月之暗面") */
   name: string;
-  provider: string;
-  baseUrl?: string;
-  apiKey?: string;
+  /** Provider type (e.g., "openai", "anthropic", "azure_openai") */
+  type: string;
+  /** API base URL */
+  baseUrl: string;
+  /** API key for authentication */
+  apiKey: string;
+  /** Whether this provider is enabled */
   enabled: boolean;
+}
+
+/**
+ * CustomModel represents an AI model that belongs to a provider.
+ * Simplified structure - provider-specific configs (baseUrl, apiKey) are now in ModelProvider.
+ */
+export interface CustomModel {
+  /** Model name (e.g., "gpt-4", "claude-3-opus") */
+  name: string;
+  /** Reference to the provider ID */
+  providerId: string;
+  /** Whether this model is enabled */
+  enabled: boolean;
+  /** Whether this is an embedding model */
   isEmbeddingModel?: boolean;
-  isBuiltIn?: boolean;
+  /** Enable CORS for this model */
   enableCors?: boolean;
-  core?: boolean;
+  /** Whether to stream responses */
   stream?: boolean;
+  /** Model temperature (0-1) */
   temperature?: number;
+  /** Maximum tokens for generation */
   maxTokens?: number;
+  /** Top-p sampling parameter */
   topP?: number;
+  /** Frequency penalty */
   frequencyPenalty?: number;
-
+  /** Whether enabled for project mode */
   projectEnabled?: boolean;
-  plusExclusive?: boolean;
-  believerExclusive?: boolean;
+  /** Model capabilities (reasoning, vision, etc.) */
   capabilities?: ModelCapability[];
+  /** Display name override */
   displayName?: string;
-
-  // Embedding models only (Jina at the moment)
+  /** Embedding dimension (for embedding models only) */
   dimensions?: number;
-  // OpenAI specific fields
-  openAIOrgId?: string;
-
-  // Azure OpenAI specific fields
-  azureOpenAIApiInstanceName?: string;
-  azureOpenAIApiDeploymentName?: string;
-  azureOpenAIApiVersion?: string;
-  azureOpenAIApiEmbeddingDeploymentName?: string;
-
-  // Amazon Bedrock specific fields
-  bedrockRegion?: string;
-
-  // OpenAI GPT-5 and O-series specific fields
+  /** Reasoning effort level (for reasoning models) */
   reasoningEffort?: "minimal" | "low" | "medium" | "high";
+  /** Verbosity level (for reasoning models) */
   verbosity?: "low" | "medium" | "high";
+
+  // Provider-specific deployment configurations (optional overrides)
+  /** Override base URL for this specific model deployment */
+  baseUrl?: string;
+  /** Amazon Bedrock region (for Bedrock provider) */
+  bedrockRegion?: string;
+  /** Azure OpenAI instance name (for Azure provider) */
+  azureOpenAIApiInstanceName?: string;
+  /** Azure OpenAI chat deployment name (for Azure provider) */
+  azureOpenAIApiDeploymentName?: string;
+  /** Azure OpenAI embedding deployment name (for Azure provider) */
+  azureOpenAIApiEmbeddingDeploymentName?: string;
+  /** Azure OpenAI API version (for Azure provider) */
+  azureOpenAIApiVersion?: string;
+}
+
+/**
+ * Generates a unique model key from model and providerId.
+ * Format: "modelName@providerId"
+ */
+export function getModelKeyFromModel(model: CustomModel): string {
+  return `${model.name}@${model.providerId}`;
+}
+
+/**
+ * Parses a model key into model name and provider ID.
+ * @param modelKey - Format: "modelName@providerId"
+ * @returns { modelName, providerId } or null if invalid
+ */
+export function parseModelKey(modelKey: string): { modelName: string; providerId: string } | null {
+  const parts = modelKey.split("@");
+  if (parts.length !== 2) {
+    return null;
+  }
+  return {
+    modelName: parts[0],
+    providerId: parts[1],
+  };
+}
+
+/**
+ * Finds a provider by its ID from the providers list.
+ * @param providers - List of providers
+ * @param providerId - Provider ID to search for
+ * @returns ModelProvider or null if not found
+ */
+export function getProviderById(
+  providers: ModelProvider[],
+  providerId: string
+): ModelProvider | null {
+  return providers.find((p) => p.id === providerId) || null;
+}
+
+/**
+ * Gets the provider for a given model.
+ * @param model - The model to get the provider for
+ * @param providers - List of providers
+ * @returns ModelProvider or null if not found
+ */
+export function getProviderForModel(
+  model: CustomModel,
+  providers: ModelProvider[]
+): ModelProvider | null {
+  return getProviderById(providers, model.providerId);
+}
+
+/**
+ * Gets the provider type for a given model.
+ * @param model - The model to get the provider type for
+ * @param providers - List of providers
+ * @returns Provider type string or empty string if not found
+ */
+export function getProviderType(model: CustomModel, providers: ModelProvider[]): string {
+  const provider = getProviderForModel(model, providers);
+  return provider?.type || "";
 }
 
 export function setModelKey(modelKey: string) {

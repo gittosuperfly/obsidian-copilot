@@ -20,20 +20,20 @@ describe("ModelAdapter", () => {
 
       const toolMetadata: ToolMetadata[] = [
         createToolMetadata("localSearch", "LocalSearch specific instructions"),
-        createToolMetadata("webSearch", "WebSearch specific instructions"),
+        createToolMetadata("readNote", "ReadNote specific instructions"),
         createToolMetadata("writeToFile", "WriteToFile specific instructions"),
       ];
 
       const enhancedPrompt = adapter.enhanceSystemPrompt(
         basePrompt,
         toolDescriptions,
-        ["localSearch", "webSearch", "writeToFile"],
+        ["localSearch", "readNote", "writeToFile"],
         toolMetadata
       );
 
       // Check that tool instructions are included
       expect(enhancedPrompt).toContain("LocalSearch specific instructions");
-      expect(enhancedPrompt).toContain("WebSearch specific instructions");
+      expect(enhancedPrompt).toContain("ReadNote specific instructions");
       expect(enhancedPrompt).toContain("WriteToFile specific instructions");
     });
 
@@ -43,7 +43,7 @@ describe("ModelAdapter", () => {
 
       const toolMetadata: ToolMetadata[] = [
         createToolMetadata("localSearch", "LocalSearch specific instructions"),
-        createToolMetadata("webSearch", "WebSearch specific instructions"),
+        createToolMetadata("readNote", "ReadNote specific instructions"),
         createToolMetadata("writeToFile", "WriteToFile specific instructions"),
       ];
 
@@ -59,7 +59,7 @@ describe("ModelAdapter", () => {
       expect(enhancedPrompt).toContain("LocalSearch specific instructions");
 
       // Should NOT include other tool instructions
-      expect(enhancedPrompt).not.toContain("WebSearch specific instructions");
+      expect(enhancedPrompt).not.toContain("ReadNote specific instructions");
       expect(enhancedPrompt).not.toContain("WriteToFile specific instructions");
     });
 
@@ -113,13 +113,13 @@ describe("ModelAdapter", () => {
       const enhancedPrompt = adapter.enhanceSystemPrompt(
         basePrompt,
         toolDescriptions,
-        ["localSearch", "webSearch"],
+        ["localSearch", "readNote"],
         [] // No metadata
       );
 
       // Should not include any tool-specific instructions
       expect(enhancedPrompt).not.toContain("LocalSearch specific instructions");
-      expect(enhancedPrompt).not.toContain("WebSearch specific instructions");
+      expect(enhancedPrompt).not.toContain("ReadNote specific instructions");
     });
 
     it("should include composer-specific examples for GPT when file tools are enabled", () => {

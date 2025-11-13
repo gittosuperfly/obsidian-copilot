@@ -14,15 +14,14 @@ import {
   MessageContent,
 } from "@/imageProcessing/imageProcessor";
 import { logInfo, logWarn } from "@/logger";
-import { checkIsPlusUser } from "@/plusUtils";
 import { getSettings, getSystemPromptWithMemory } from "@/settings/model";
 import { writeToFileTool } from "@/tools/ComposerTools";
 import { ToolManager } from "@/tools/toolManager";
 import { ToolResultFormatter } from "@/tools/ToolResultFormatter";
 import { ChatMessage, ResponseMetadata } from "@/types/message";
 import { getApiErrorMessage, getMessageRole, withSuppressedTokenWarnings } from "@/utils";
+import { IntentAnalyzer } from "@/LLMProviders/intentAnalyzer";
 import { BaseChatModel } from "@langchain/core/language_models/chat_models";
-import { IntentAnalyzer } from "../intentAnalyzer";
 import { BaseChainRunner } from "./BaseChainRunner";
 import { ActionBlockStreamer } from "./utils/ActionBlockStreamer";
 import { addChatHistoryToMessages } from "./utils/chatHistoryUtils";
@@ -48,7 +47,7 @@ import { ThinkBlockStreamer } from "./utils/ThinkBlockStreamer";
 import { deduplicateSources } from "./utils/toolExecution";
 import { recordPromptPayload } from "./utils/promptPayloadRecorder";
 
-export class CopilotPlusChainRunner extends BaseChainRunner {
+export class AdvancedChainRunner extends BaseChainRunner {
   private async processImageUrls(urls: string[]): Promise<ImageProcessingResult> {
     const failedImages: string[] = [];
     const processedImages = await ImageBatchProcessor.processUrlBatch(
@@ -198,7 +197,7 @@ export class CopilotPlusChainRunner extends BaseChainRunner {
 
       if (!envelope) {
         throw new Error(
-          "[CopilotPlus] Context envelope is required but not available. Cannot extract images."
+          "[Advanced] Context envelope is required but not available. Cannot extract images."
         );
       }
 
@@ -224,7 +223,7 @@ export class CopilotPlusChainRunner extends BaseChainRunner {
 
           if (activeNoteContent) {
             logInfo(
-              "[CopilotPlus] Extracting images from active note only:",
+              "[Advanced] Extracting images from active note only:",
               sourcePath || "no source path"
             );
             const embeddedImages = await this.extractEmbeddedImages(activeNoteContent, sourcePath);
@@ -318,11 +317,11 @@ export class CopilotPlusChainRunner extends BaseChainRunner {
     const envelope = userMessage.contextEnvelope;
     if (!envelope) {
       throw new Error(
-        "[CopilotPlus] Context envelope is required but not available. Cannot proceed with CopilotPlus chain."
+        "[Advanced] Context envelope is required but not available. Cannot proceed with Advanced chain."
       );
     }
 
-    logInfo("[CopilotPlus] Using envelope-based context construction");
+    logInfo("[Advanced] Using envelope-based context construction");
 
     // Use LayerToMessagesConverter to get base messages with L1+L2 system, L3+L5 user
     const baseMessages = LayerToMessagesConverter.convert(envelope, {
@@ -433,7 +432,7 @@ export class CopilotPlusChainRunner extends BaseChainRunner {
 
     for await (const chunk of chatStream) {
       if (abortController.signal.aborted) {
-        logInfo("CopilotPlus multimodal stream iteration aborted", {
+        logInfo("Advanced multimodal stream iteration aborted", {
           reason: abortController.signal.reason,
         });
         break;
@@ -470,26 +469,6 @@ export class CopilotPlusChainRunner extends BaseChainRunner {
     );
     let sources: { title: string; path: string; score: number; explanation?: any }[] = [];
 
-    const isPlusUser = await checkIsPlusUser({
-      isCopilotPlus: true,
-    });
-    if (!isPlusUser) {
-      await this.handleError(
-        new Error("Invalid license key"),
-        thinkStreamer.processErrorChunk.bind(thinkStreamer)
-      );
-      const errorResponse = thinkStreamer.close().content;
-
-      return this.handleResponse(
-        errorResponse,
-        userMessage,
-        abortController,
-        addMessage,
-        updateCurrentAiMessage,
-        undefined // no sources
-      );
-    }
-
     try {
       logInfo("==== Step 1: Analyzing intent ====");
       let toolCalls;
@@ -498,7 +477,7 @@ export class CopilotPlusChainRunner extends BaseChainRunner {
       const envelope = userMessage.contextEnvelope;
       if (!envelope) {
         throw new Error(
-          "[CopilotPlus] Context envelope is required but not available. Cannot proceed with CopilotPlus chain."
+          "[Advanced] Context envelope is required but not available. Cannot proceed with Advanced chain."
         );
       }
       const l5User = envelope.layers.find((l) => l.id === "L5_USER");
@@ -557,7 +536,7 @@ export class CopilotPlusChainRunner extends BaseChainRunner {
 
       // Check if the error is due to abort signal
       if (error.name === "AbortError" || abortController.signal.aborted) {
-        logInfo("CopilotPlus stream aborted by user", { reason: abortController.signal.reason });
+        logInfo("Advanced stream aborted by user", { reason: abortController.signal.reason });
         // Don't show error message for user-initiated aborts
       } else {
         await this.handleError(error, thinkStreamer.processErrorChunk.bind(thinkStreamer));
@@ -627,8 +606,6 @@ export class CopilotPlusChainRunner extends BaseChainRunner {
       logInfo(`Step 2: Calling tool: ${toolCall.tool.name}`);
       if (toolCall.tool.name === "localSearch") {
         updateLoadingMessage?.(LOADING_MESSAGES.READING_FILES);
-      } else if (toolCall.tool.name === "webSearch") {
-        updateLoadingMessage?.(LOADING_MESSAGES.SEARCHING_WEB);
       } else if (toolCall.tool.name === "getFileTree") {
         updateLoadingMessage?.(LOADING_MESSAGES.READING_FILE_TREE);
       }
@@ -800,7 +777,7 @@ export class CopilotPlusChainRunner extends BaseChainRunner {
 
   /**
    * Formats all tool outputs uniformly for user message.
-   * All tools (localSearch, webSearch, getFileTree, etc.) are treated the same.
+   * All tools (localSearch, readNote, getFileTree, etc.) are treated the same.
    */
   private formatAllToolOutputs(toolOutputs: any[]): string {
     if (toolOutputs.length === 0) return "";

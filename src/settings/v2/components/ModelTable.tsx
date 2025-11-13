@@ -1,4 +1,5 @@
-import { CustomModel } from "@/aiParams";
+import { CustomModel, getProviderType } from "@/aiParams";
+import { getSettings } from "@/settings/model";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { MobileCard, MobileCardDropdownAction } from "@/components/ui/mobile-card";
@@ -14,7 +15,7 @@ import {
 import { HelpTooltip } from "@/components/ui/help-tooltip";
 import { MODEL_CAPABILITIES, ModelCapability } from "@/constants";
 import { cn } from "@/lib/utils";
-import { getModelKeyFromModel } from "@/settings/model";
+import { getModelKeyFromModel } from "@/aiParams";
 import { getProviderLabel } from "@/utils";
 import {
   closestCenter,
@@ -36,7 +37,6 @@ import { CSS } from "@dnd-kit/utilities";
 import {
   Copy,
   Eye,
-  Globe,
   GripVertical,
   Lightbulb,
   LucideProps,
@@ -54,37 +54,30 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useI18n } from "@/i18n";
+import type { TranslationKey } from "@/i18n";
 
 const CAPABILITY_ICONS: Record<
   ModelCapability,
   {
     icon: ForwardRefExoticComponent<Omit<LucideProps, "ref"> & RefAttributes<SVGSVGElement>>;
     color: string;
-    tooltip: string;
+    tooltipKey: TranslationKey;
   }
 > = {
   [ModelCapability.REASONING]: {
     icon: Lightbulb,
     color: "tw-text-model-capabilities-blue",
-    tooltip: MODEL_CAPABILITIES.reasoning,
+    tooltipKey: MODEL_CAPABILITIES.reasoning.descriptionKey,
   },
   [ModelCapability.VISION]: {
     icon: Eye,
     color: "tw-text-model-capabilities-green",
-    tooltip: MODEL_CAPABILITIES.vision,
-  },
-  [ModelCapability.WEB_SEARCH]: {
-    icon: Globe,
-    color: "tw-text-model-capabilities-blue",
-    tooltip: MODEL_CAPABILITIES.websearch,
+    tooltipKey: MODEL_CAPABILITIES.vision.descriptionKey,
   },
 } as const;
 
-const CAPABILITY_ORDER = [
-  ModelCapability.REASONING,
-  ModelCapability.VISION,
-  ModelCapability.WEB_SEARCH,
-] as const;
+const CAPABILITY_ORDER = [ModelCapability.REASONING, ModelCapability.VISION] as const;
 
 interface ModelTableHeaderProps {
   title: string;
@@ -95,31 +88,37 @@ interface ModelTableHeaderProps {
 /**
  * Renders the model table header with a title and aligned action buttons.
  */
-const ModelTableHeader: React.FC<ModelTableHeaderProps> = ({ title, onRefresh, onAdd }) => (
-  <div className="tw-mb-3 tw-flex tw-flex-col tw-gap-2 md:tw-flex-row md:tw-items-center md:tw-justify-between">
-    <h3 className="tw-text-xl tw-font-bold">{title}</h3>
-    <div className="tw-flex tw-flex-col tw-gap-2 sm:tw-flex-row sm:tw-items-center sm:tw-justify-end">
-      {onRefresh && (
-        <Button
-          onClick={onRefresh}
-          variant="secondary"
-          className="tw-flex tw-items-center tw-gap-2"
-        >
-          <RefreshCw className="tw-size-2 md:tw-size-4" />
-          Refresh Built-ins
-        </Button>
-      )}
-      <Button onClick={onAdd} variant="default" className="tw-flex tw-items-center tw-gap-2">
-        <Plus className="tw-size-2 md:tw-size-4" />
-        Add Model
-      </Button>
-    </div>
-  </div>
-);
+const ModelTableHeader: React.FC<ModelTableHeaderProps> = ({ title, onRefresh, onAdd }) => {
+  const { t } = useI18n();
 
-const renderCapabilities = (model: CustomModel) => {
   return (
-    <div className="tw-mx-auto tw-grid tw-w-16 tw-grid-cols-3 tw-gap-1">
+    <div className="tw-mb-3 tw-flex tw-flex-col tw-gap-2 md:tw-flex-row md:tw-items-center md:tw-justify-between">
+      <h3 className="tw-text-xl tw-font-bold">{title}</h3>
+      <div className="tw-flex tw-flex-col tw-gap-2 sm:tw-flex-row sm:tw-items-center sm:tw-justify-end">
+        {onRefresh && (
+          <Button
+            onClick={onRefresh}
+            variant="secondary"
+            className="tw-flex tw-items-center tw-gap-2"
+          >
+            <RefreshCw className="tw-size-2 md:tw-size-4" />
+            {t("settings.models.table.refreshBuiltIns")}
+          </Button>
+        )}
+        <Button onClick={onAdd} variant="default" className="tw-flex tw-items-center tw-gap-2">
+          <Plus className="tw-size-2 md:tw-size-4" />
+          {t("settings.models.table.addModel")}
+        </Button>
+      </div>
+    </div>
+  );
+};
+
+const CapabilitiesCell: React.FC<{ model: CustomModel }> = ({ model }) => {
+  const { t } = useI18n();
+
+  return (
+    <div className="tw-mx-auto tw-grid tw-w-12 tw-grid-cols-2 tw-gap-1">
       {CAPABILITY_ORDER.map((capability) => {
         const config = CAPABILITY_ICONS[capability];
         if (!config) return <div key={capability} className="tw-w-4" />;
@@ -128,7 +127,7 @@ const renderCapabilities = (model: CustomModel) => {
         const hasCapability = model.capabilities?.includes(capability);
 
         return hasCapability ? (
-          <HelpTooltip key={capability} content={config.tooltip} side="bottom">
+          <HelpTooltip key={capability} content={t(config.tooltipKey)} side="bottom">
             <div className="tw-flex tw-items-center tw-justify-center">
               <Icon className={cn("tw-size-4", config.color)} />
             </div>
@@ -162,38 +161,37 @@ const ModelCard: React.FC<ModelCardProps> = ({
   id,
   containerRef,
 }) => {
+  const { t } = useI18n();
   const dropdownActions: MobileCardDropdownAction<CustomModel>[] = [];
 
   if (onEdit) {
     dropdownActions.push({
       icon: <PencilLine className="tw-size-4" />,
-      label: "Edit",
+      label: t("settings.models.table.actions.edit"),
       onClick: onEdit,
     });
   }
 
-  if (onCopy && !model.core) {
+  if (onCopy) {
     dropdownActions.push({
       icon: <Copy className="tw-size-4" />,
-      label: "Copy",
+      label: t("settings.models.table.actions.copy"),
       onClick: onCopy,
     });
   }
 
-  if (!model.core) {
-    dropdownActions.push({
-      icon: <Trash2 className="tw-size-4" />,
-      label: "Delete",
-      onClick: () => onDelete(getModelKeyFromModel(model)),
-      variant: "destructive",
-    });
-  }
+  dropdownActions.push({
+    icon: <Trash2 className="tw-size-4" />,
+    label: t("settings.models.table.actions.delete"),
+    onClick: () => onDelete(getModelKeyFromModel(model)),
+    variant: "destructive",
+  });
 
   const expandedContent = (
     <div className="tw-flex tw-justify-around">
       {!model.isEmbeddingModel && (
         <div className="tw-flex tw-items-center tw-gap-2">
-          <span className="tw-text-sm">Enabled</span>
+          <span className="tw-text-sm">{t("settings.models.table.expanded.enabled")}</span>
           <Checkbox
             checked={model.enabled}
             onCheckedChange={(checked: boolean) => onUpdateModel({ ...model, enabled: checked })}
@@ -201,7 +199,7 @@ const ModelCard: React.FC<ModelCardProps> = ({
         </div>
       )}
       <div className="tw-flex tw-items-center tw-gap-2">
-        <span className="tw-text-sm">CORS</span>
+        <span className="tw-text-sm">{t("settings.models.table.expanded.cors")}</span>
         <Checkbox
           checked={model.enableCors}
           onCheckedChange={(checked: boolean) => onUpdateModel({ ...model, enableCors: checked })}
@@ -215,13 +213,13 @@ const ModelCard: React.FC<ModelCardProps> = ({
       id={id}
       item={model}
       title={model.displayName || model.name}
-      subtitle={getProviderLabel(model.provider, model)}
+      subtitle={getProviderLabel(getProviderType(model, getSettings().providers), model)}
       badge={
         model.capabilities && model.capabilities.length > 0 ? (
           <ModelCapabilityIcons capabilities={model.capabilities} iconSize={14} />
         ) : undefined
       }
-      isDraggable={!model.core}
+      isDraggable
       isExpandable
       expandedContent={expandedContent}
       primaryAction={
@@ -229,7 +227,7 @@ const ModelCard: React.FC<ModelCardProps> = ({
           ? {
               icon: <Pencil className="tw-size-4" />,
               onClick: onEdit,
-              tooltip: "Edit Model",
+              tooltip: t("settings.models.table.actions.editTooltip"),
             }
           : undefined
       }
@@ -250,15 +248,16 @@ const DesktopSortableTableRow: React.FC<{
 }> = ({ model, onEdit, onCopy, onDelete, onUpdateModel, isEmbeddingModel, containerRef }) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: getModelKeyFromModel(model),
-    disabled: model.core,
+    disabled: false,
   });
+  const { t } = useI18n();
 
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
   };
 
-  const showDropdownMenu = onEdit || !model.core || (onCopy && !model.core);
+  const showDropdownMenu = true;
 
   return (
     <TableRow
@@ -271,21 +270,23 @@ const DesktopSortableTableRow: React.FC<{
       )}
     >
       <TableCell className="tw-w-6 tw-px-2">
-        {!model.core && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="tw-size-6 tw-cursor-grab tw-touch-none tw-p-0 hover:tw-cursor-grab active:tw-cursor-grabbing"
-            {...attributes}
-            {...listeners}
-          >
-            <GripVertical className="tw-size-4 tw-transition-colors" />
-          </Button>
-        )}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="tw-size-6 tw-cursor-grab tw-touch-none tw-p-0 hover:tw-cursor-grab active:tw-cursor-grabbing"
+          {...attributes}
+          {...listeners}
+        >
+          <GripVertical className="tw-size-4 tw-transition-colors" />
+        </Button>
       </TableCell>
       <TableCell className="tw-pl-0">{model.displayName || model.name}</TableCell>
-      <TableCell>{getProviderLabel(model.provider, model)}</TableCell>
-      <TableCell>{renderCapabilities(model)}</TableCell>
+      <TableCell>
+        {getProviderLabel(getProviderType(model, getSettings().providers), model)}
+      </TableCell>
+      <TableCell>
+        <CapabilitiesCell model={model} />
+      </TableCell>
       {!isEmbeddingModel && (
         <TableCell className="tw-text-center">
           <Checkbox
@@ -328,26 +329,24 @@ const DesktopSortableTableRow: React.FC<{
                 {onEdit && (
                   <DropdownMenuItem onClick={() => onEdit(model)}>
                     <PencilLine className="tw-mr-2 tw-size-4" />
-                    Edit
+                    {t("settings.models.table.actions.edit")}
                   </DropdownMenuItem>
                 )}
 
-                {onCopy && !model.core && (
+                {onCopy && (
                   <DropdownMenuItem onClick={() => onCopy(model)}>
                     <Copy className="tw-mr-2 tw-size-4" />
-                    Copy
+                    {t("settings.models.table.actions.copy")}
                   </DropdownMenuItem>
                 )}
 
-                {!model.core && (
-                  <DropdownMenuItem
-                    onClick={() => onDelete(getModelKeyFromModel(model))}
-                    className="tw-text-error"
-                  >
-                    <Trash2 className="tw-mr-2 tw-size-4" />
-                    Delete
-                  </DropdownMenuItem>
-                )}
+                <DropdownMenuItem
+                  onClick={() => onDelete(getModelKeyFromModel(model))}
+                  className="tw-text-error"
+                >
+                  <Trash2 className="tw-mr-2 tw-size-4" />
+                  {t("settings.models.table.actions.delete")}
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           )}
@@ -380,6 +379,7 @@ export const ModelTable: React.FC<ModelTableProps> = ({
   onRefresh,
   title,
 }) => {
+  const { t } = useI18n();
   const isEmbeddingModel = !!(models.length > 0 && models[0].isEmbeddingModel);
 
   const sensors = useSensors(
@@ -391,19 +391,19 @@ export const ModelTable: React.FC<ModelTableProps> = ({
 
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Find the index of the first non-core model
-  const firstDraggableIndex = models.findIndex((model) => !model.core);
+  // All models are draggable in provider-centric architecture
+  const firstDraggableIndex = 0;
 
   // Create unified modifier logic
-  const createDragModifier = (isMobile: boolean) => (args: any) => {
-    const { transform, active, activeNodeRect, over } = args;
+  const createDragModifier = (_isMobile: boolean) => (args: any) => {
+    const { transform, active, activeNodeRect } = args;
     if (!active || !activeNodeRect) return transform;
 
     // Get the index of current dragging item
     const currentIndex = models.findIndex((model) => getModelKeyFromModel(model) === active.id);
 
-    // Calculate the number of non-core items
-    const draggableItemsCount = models.filter((model) => !model.core).length;
+    // Total draggable items
+    const draggableItemsCount = models.length;
 
     // Calculate row height
     const rowHeight = activeNodeRect.height;
@@ -411,21 +411,6 @@ export const ModelTable: React.FC<ModelTableProps> = ({
     // Calculate draggable range
     const minY = (firstDraggableIndex - currentIndex) * rowHeight;
     const maxY = (firstDraggableIndex + draggableItemsCount - 1 - currentIndex) * rowHeight;
-
-    // For mobile view, check if hovering over a core model
-    if (isMobile && over) {
-      const overIndex = models.findIndex((model) => getModelKeyFromModel(model) === over.id);
-      const overModel = models[overIndex];
-
-      // If hovering over a core model, return to original position
-      if (overModel.core || overIndex < firstDraggableIndex) {
-        return {
-          ...transform,
-          x: 0,
-          y: 0,
-        };
-      }
-    }
 
     // Restrict within draggable range
     return {
@@ -441,19 +426,6 @@ export const ModelTable: React.FC<ModelTableProps> = ({
     if (over && active.id !== over.id) {
       const oldIndex = models.findIndex((model) => getModelKeyFromModel(model) === active.id);
       const newIndex = models.findIndex((model) => getModelKeyFromModel(model) === over.id);
-
-      // Get target model
-      const targetModel = models[newIndex];
-
-      // 1. Prevent moving to core model positions
-      if (newIndex < firstDraggableIndex) {
-        return;
-      }
-
-      // 2. Prevent moving to other non-draggable model positions
-      if (targetModel.core) {
-        return;
-      }
 
       const newModels = arrayMove(models, oldIndex, newIndex);
       onReorderModels?.(newModels);
@@ -516,12 +488,24 @@ export const ModelTable: React.FC<ModelTableProps> = ({
               <TableHeader>
                 <TableRow>
                   <TableHead className="tw-w-6 tw-px-2"></TableHead>
-                  <TableHead className="tw-pl-0">Model</TableHead>
-                  <TableHead>Provider</TableHead>
-                  <TableHead className="tw-text-center">Capabilities</TableHead>
-                  {!isEmbeddingModel && <TableHead className="tw-text-center">Enable</TableHead>}
-                  <TableHead className="tw-text-center">CORS</TableHead>
-                  <TableHead className="tw-w-[100px] tw-text-center">Actions</TableHead>
+                  <TableHead className="tw-pl-0">
+                    {t("settings.models.table.column.model")}
+                  </TableHead>
+                  <TableHead>{t("settings.models.table.column.provider")}</TableHead>
+                  <TableHead className="tw-text-center">
+                    {t("settings.models.table.column.capabilities")}
+                  </TableHead>
+                  {!isEmbeddingModel && (
+                    <TableHead className="tw-text-center">
+                      {t("settings.models.table.column.enable")}
+                    </TableHead>
+                  )}
+                  <TableHead className="tw-text-center">
+                    {t("settings.models.table.column.cors")}
+                  </TableHead>
+                  <TableHead className="tw-w-[100px] tw-text-center">
+                    {t("settings.models.table.column.actions")}
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody className="tw-relative">

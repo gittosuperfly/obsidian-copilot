@@ -3,6 +3,7 @@ import React, { useState } from "react";
 import { createRoot, Root } from "react-dom/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useI18n, translate } from "@/i18n";
 
 function CustomPatternInputModalContent({
   onConfirm,
@@ -11,6 +12,7 @@ function CustomPatternInputModalContent({
   onConfirm: (pattern: string) => void;
   onCancel: () => void;
 }) {
+  const { t } = useI18n();
   // TODO: Add validation
   const [pattern, setPattern] = useState("");
 
@@ -23,12 +25,9 @@ function CustomPatternInputModalContent({
   return (
     <div className="tw-flex tw-flex-col tw-gap-4">
       <div className="tw-flex tw-flex-col tw-gap-4">
-        <div>
-          Comma separated list of paths, tags, note titles or file extension e.g. folder1,
-          folder1/folder2, #tag1, #tag2, [[note1]], [[note2]], *.jpg, *.excallidraw.md
-        </div>
+        <div>{t("modal.customPattern.description")}</div>
         <Input
-          placeholder="Enter the pattern"
+          placeholder={t("modal.customPattern.placeholder")}
           value={pattern}
           onChange={(e) => setPattern(e.target.value)}
           onKeyDown={handleKeyDown}
@@ -36,10 +35,10 @@ function CustomPatternInputModalContent({
       </div>
       <div className="tw-flex tw-justify-end tw-gap-2">
         <Button variant="secondary" onClick={onCancel}>
-          Cancel
+          {t("modal.customPattern.cancel")}
         </Button>
         <Button variant="default" onClick={() => onConfirm(pattern)}>
-          Confirm
+          {t("modal.customPattern.confirm")}
         </Button>
       </div>
     </div>
@@ -56,7 +55,7 @@ export class CustomPatternInputModal extends Modal {
     super(app);
     // https://docs.obsidian.md/Reference/TypeScript+API/Modal/setTitle
     // @ts-ignore
-    this.setTitle("Add Custom Pattern");
+    this.setTitle(translate("modal.customPattern.title"));
   }
 
   onOpen() {

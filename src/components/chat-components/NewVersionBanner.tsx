@@ -5,6 +5,7 @@ import { updateSetting, useSettingsValue } from "@/settings/model";
 import { isNewerVersion } from "@/utils";
 import { XIcon } from "lucide-react";
 import React, { useState } from "react";
+import { useI18n } from "@/i18n";
 
 interface NewVersionBannerProps {
   currentVersion: string;
@@ -14,6 +15,7 @@ export function NewVersionBanner({ currentVersion }: NewVersionBannerProps) {
   const { latestVersion, hasUpdate } = useLatestVersion(currentVersion);
   const lastDismissedVersion = useSettingsValue().lastDismissedVersion;
   const [isVisible, setIsVisible] = useState(true);
+  const { t } = useI18n();
 
   const showBanner =
     hasUpdate &&
@@ -46,7 +48,7 @@ export function NewVersionBanner({ currentVersion }: NewVersionBannerProps) {
     >
       <div className="tw-mb-1 tw-flex tw-items-center tw-justify-between tw-gap-2 tw-rounded-md tw-border tw-border-solid tw-border-border tw-p-2 tw-pl-3 tw-text-xs">
         <div className="tw-flex tw-items-center tw-gap-2">
-          <span className="tw-font-medium">Update available:</span>
+          <span className="tw-font-medium">{t("banner.updateAvailable")}</span>
           <a
             href={`https://github.com/logancyang/obsidian-copilot/releases/latest`}
             target="_blank"
@@ -66,7 +68,7 @@ export function NewVersionBanner({ currentVersion }: NewVersionBannerProps) {
               handleDismiss();
             }}
           >
-            Update
+            {t("banner.updateAction")}
           </Button>
           <Button variant="ghost2" size="icon" onClick={handleDismiss}>
             <XIcon className="tw-size-4" />

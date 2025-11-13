@@ -1,10 +1,9 @@
-import { CustomModel } from "@/aiParams";
+import { CustomModel, getProviderType } from "@/aiParams";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { FormField } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { PasswordInput } from "@/components/ui/password-input";
 
 import { HelpTooltip } from "@/components/ui/help-tooltip";
 import {
@@ -12,10 +11,7 @@ import {
   ChatModelProviders,
   MODEL_CAPABILITIES,
   ModelCapability,
-  Provider,
   ProviderMetadata,
-  ProviderSettingsKeyMap,
-  SettingKeyProviders,
 } from "@/constants";
 import { getSettings } from "@/settings/model";
 import { debounce, getProviderInfo, getProviderLabel } from "@/utils";
@@ -23,6 +19,7 @@ import { App, Modal, Platform } from "obsidian";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { createRoot, Root } from "react-dom/client";
 import { ParameterControl } from "@/components/ui/parameter-controls";
+import { useI18n } from "@/i18n";
 
 interface ModelEditModalContentProps {
   model: CustomModel;
@@ -45,19 +42,18 @@ export const ModelEditModalContent: React.FC<ModelEditModalContentProps> = ({
   const [originalModel, setOriginalModel] = useState<CustomModel>(model);
   const [providerInfo, setProviderInfo] = useState<ProviderMetadata>({} as ProviderMetadata);
   const settings = getSettings();
-  const isBedrockProvider = localModel.provider === ChatModelProviders.AMAZON_BEDROCK;
-
-  const getDefaultApiKey = (provider: Provider): string => {
-    return (settings[ProviderSettingsKeyMap[provider as SettingKeyProviders]] as string) || "";
-  };
+  const providerType = getProviderType(localModel, settings.providers);
+  const isBedrockProvider = providerType === ChatModelProviders.AMAZON_BEDROCK;
+  const { t } = useI18n();
 
   useEffect(() => {
     setLocalModel(model);
     setOriginalModel(model);
-    if (model.provider) {
-      setProviderInfo(getProviderInfo(model.provider));
+    const pType = getProviderType(model, settings.providers);
+    if (pType) {
+      setProviderInfo(getProviderInfo(pType));
     }
-  }, [model]);
+  }, [model, settings.providers]);
 
   // Debounce the onUpdate callback
   const debouncedOnUpdate = useMemo(
@@ -97,10 +93,20 @@ export const ModelEditModalContent: React.FC<ModelEditModalContentProps> = ({
     [debouncedOnUpdate, originalModel]
   );
 
+  const capabilityOptions = useMemo(
+    () =>
+      Object.entries(MODEL_CAPABILITIES).map(([id, { labelKey, descriptionKey }]) => ({
+        id: id as ModelCapability,
+        label: t(labelKey),
+        description: t(descriptionKey),
+      })),
+    [t]
+  );
+
   if (!localModel) return null;
 
   const getPlaceholderUrl = () => {
-    if (!localModel || !localModel.provider || localModel.provider !== "azure-openai") {
+    if (!localModel || providerType !== "azure-openai") {
       return providerInfo.host || "https://api.example.com/v1";
     }
 
@@ -114,14 +120,7 @@ export const ModelEditModalContent: React.FC<ModelEditModalContentProps> = ({
     return `https://${instanceName}.openai.azure.com/openai/deployments/${deploymentName}/${endpoint}?api-version=${apiVersion}`;
   };
 
-  const capabilityOptions = Object.entries(MODEL_CAPABILITIES).map(([id, description]) => ({
-    id,
-    label: id.charAt(0).toUpperCase() + id.slice(1),
-    description,
-  })) as Array<{ id: ModelCapability; label: string; description: string }>;
-
-  const displayApiKey = localModel.apiKey || getDefaultApiKey(localModel.provider as Provider);
-  const showOtherParameters = !isEmbeddingModel && localModel.provider !== "copilot-plus-jina";
+  const showOtherParameters = !isEmbeddingModel;
 
   return (
     <div className="tw-space-y-3 tw-p-4">
@@ -129,7 +128,7 @@ export const ModelEditModalContent: React.FC<ModelEditModalContentProps> = ({
         <FormField label="Model Name" required>
           <Input
             type="text"
-            disabled={localModel.core}
+            disabled={false}
             value={localModel.name}
             onChange={(e) => handleLocalUpdate("name", e.target.value)}
             placeholder="Enter model name"
@@ -167,7 +166,7 @@ export const ModelEditModalContent: React.FC<ModelEditModalContentProps> = ({
         </FormField>
 
         <FormField label="Provider">
-          <Input type="text" value={getProviderLabel(localModel.provider)} disabled />
+          <Input type="text" value={getProviderLabel(providerType)} disabled />
         </FormField>
 
         <FormField label="Base URL" description="Leave it blank, unless you are using a proxy.">
@@ -192,21 +191,6 @@ export const ModelEditModalContent: React.FC<ModelEditModalContentProps> = ({
             />
           </FormField>
         )}
-
-        <FormField label="API Key">
-          <PasswordInput
-            placeholder={`Enter ${providerInfo.label || "Provider"} API Key`}
-            value={displayApiKey}
-            onChange={(value) => handleLocalUpdate("apiKey", value)}
-          />
-          {providerInfo.keyManagementURL && (
-            <p className="tw-text-xs tw-text-muted">
-              <a href={providerInfo.keyManagementURL} target="_blank" rel="noopener noreferrer">
-                Get {providerInfo.label} API Key
-              </a>
-            </p>
-          )}
-        </FormField>
 
         {showOtherParameters && (
           <>
@@ -331,7 +315,7 @@ export const ModelEditModalContent: React.FC<ModelEditModalContentProps> = ({
             </FormField>
 
             {/* Reasoning Effort and Verbosity for GPT-5 and O-series models */}
-            {localModel.provider === "openai" &&
+            {providerType === "openai" &&
               (localModel.name.startsWith("gpt-5") ||
                 localModel.name.startsWith("o1") ||
                 localModel.name.startsWith("o3") ||
@@ -405,7 +389,7 @@ export const ModelEditModalContent: React.FC<ModelEditModalContentProps> = ({
               )}
 
             {/* Reasoning Effort for OpenRouter models */}
-            {localModel.provider === "openrouterai" && (
+            {providerType === "openrouterai" && (
               <FormField>
                 <ParameterControl
                   type="select"

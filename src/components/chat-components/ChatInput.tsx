@@ -12,14 +12,14 @@ import { Button } from "@/components/ui/button";
 import { ModelSelector } from "@/components/ui/ModelSelector";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ChatToolControls } from "./ChatToolControls";
-import { isPlusChain } from "@/utils";
+import { isAdvancedChain, isAllowedFileForNoteContext } from "@/utils";
+import { useI18n } from "@/i18n";
 
 import { useSettingsValue } from "@/settings/model";
 import { SelectedTextContext } from "@/types/message";
-import { isAllowedFileForNoteContext } from "@/utils";
 import { CornerDownLeft, Image, Loader2, StopCircle, X } from "lucide-react";
 import { App, Notice, TFile } from "obsidian";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { $getSelection, $isRangeSelection } from "lexical";
 import { ContextControl } from "./ContextControl";
 import { $removePillsByPath } from "./pills/NotePillNode";
@@ -102,6 +102,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
   const [currentChain] = useChainType();
   const [isProjectLoading] = useProjectLoading();
   const settings = useSettingsValue();
+  const { t } = useI18n();
   const [currentActiveNote, setCurrentActiveNote] = useState<TFile | null>(() => {
     const activeFile = app.workspace.getActiveFile();
     return isAllowedFileForNoteContext(activeFile) ? activeFile : null;
@@ -111,21 +112,23 @@ const ChatInput: React.FC<ChatInputProps> = ({
   const [urlsFromPills, setUrlsFromPills] = useState<string[]>([]);
   const [foldersFromPills, setFoldersFromPills] = useState<string[]>([]);
   const [toolsFromPills, setToolsFromPills] = useState<string[]>([]);
-  const isCopilotPlus = isPlusChain(currentChain);
+  const isAdvancedMode = isAdvancedChain(currentChain);
 
-  // Toggle states for vault, web search, composer, and autonomous agent
+  // Toggle states for vault search, composer, and autonomous agent
   const [vaultToggle, setVaultToggle] = useState(false);
-  const [webToggle, setWebToggle] = useState(false);
   const [composerToggle, setComposerToggle] = useState(false);
   const [autonomousAgentToggle, setAutonomousAgentToggle] = useState(
     settings.enableAutonomousAgent
   );
   const [loadingMessageIndex, setLoadingMessageIndex] = useState(0);
-  const loadingMessages = [
-    "Loading the project context...",
-    "Processing context files...",
-    "If you have many files in context, this can take a while...",
-  ];
+  const loadingMessages = useMemo(
+    () => [
+      t("chat.loadingMessage.project"),
+      t("chat.loadingMessage.context"),
+      t("chat.loadingMessage.wait"),
+    ],
+    [t]
+  );
 
   // Sync autonomous agent toggle with settings and chain type
   useEffect(() => {
@@ -186,7 +189,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
       return;
     }
 
-    if (!isCopilotPlus) {
+    if (!isAdvancedMode) {
       handleSendMessage();
       return;
     }
@@ -201,9 +204,6 @@ const ChatInput: React.FC<ChatInputProps> = ({
       // Only add tools from buttons if they're not already in the message
       if (vaultToggle && !messageLower.includes("@vault")) {
         toolCalls.push("@vault");
-      }
-      if (webToggle && !messageLower.includes("@websearch") && !messageLower.includes("@web")) {
-        toolCalls.push("@websearch");
       }
       if (composerToggle && !messageLower.includes("@composer")) {
         toolCalls.push("@composer");
@@ -246,17 +246,13 @@ const ChatInput: React.FC<ChatInputProps> = ({
 
   // Handle when tools are removed from pills (when pills are deleted in editor)
   const handleToolPillsRemoved = (removedTools: string[]) => {
-    if (!isCopilotPlus || autonomousAgentToggle) return;
+    if (!isAdvancedMode || autonomousAgentToggle) return;
 
     // Update tool button states based on removed pills
     removedTools.forEach((tool) => {
       switch (tool) {
         case "@vault":
           setVaultToggle(false);
-          break;
-        case "@websearch":
-        case "@web":
-          setWebToggle(false);
           break;
         case "@composer":
           setComposerToggle(false);
@@ -267,17 +263,15 @@ const ChatInput: React.FC<ChatInputProps> = ({
 
   // Sync tool button states with tool pills
   useEffect(() => {
-    if (!isCopilotPlus || autonomousAgentToggle) return;
+    if (!isAdvancedMode || autonomousAgentToggle) return;
 
     // Update button states based on current tool pills
     const hasVault = toolsFromPills.includes("@vault");
-    const hasWeb = toolsFromPills.includes("@websearch") || toolsFromPills.includes("@web");
     const hasComposer = toolsFromPills.includes("@composer");
 
     setVaultToggle(hasVault);
-    setWebToggle(hasWeb);
     setComposerToggle(hasComposer);
-  }, [toolsFromPills, isCopilotPlus, autonomousAgentToggle]);
+  }, [toolsFromPills, isAdvancedMode, autonomousAgentToggle]);
 
   // Handle when context notes are removed from the context menu
   // This should remove all corresponding pills from the editor
@@ -461,7 +455,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
 
   // URL pill-to-context synchronization (when URL pills are added) - only for Plus chains
   useEffect(() => {
-    if (isPlusChain(currentChain)) {
+    if (isAdvancedChain(currentChain)) {
       setContextUrls((prev) => {
         const contextUrlSet = new Set(prev);
 
@@ -545,29 +539,20 @@ const ChatInput: React.FC<ChatInputProps> = ({
 
   // Handle tool button toggle-off events - remove corresponding pills
   const handleVaultToggleOff = useCallback(() => {
-    if (lexicalEditorRef.current && isCopilotPlus) {
+    if (lexicalEditorRef.current && isAdvancedMode) {
       lexicalEditorRef.current.update(() => {
         $removePillsByToolName("@vault");
       });
     }
-  }, [isCopilotPlus]);
-
-  const handleWebToggleOff = useCallback(() => {
-    if (lexicalEditorRef.current && isCopilotPlus) {
-      lexicalEditorRef.current.update(() => {
-        $removePillsByToolName("@websearch");
-        $removePillsByToolName("@web");
-      });
-    }
-  }, [isCopilotPlus]);
+  }, [isAdvancedMode]);
 
   const handleComposerToggleOff = useCallback(() => {
-    if (lexicalEditorRef.current && isCopilotPlus) {
+    if (lexicalEditorRef.current && isAdvancedMode) {
       lexicalEditorRef.current.update(() => {
         $removePillsByToolName("@composer");
       });
     }
-  }, [isCopilotPlus]);
+  }, [isAdvancedMode]);
 
   // Active note pill sync callbacks
   const handleActiveNoteAdded = useCallback(() => {
@@ -580,11 +565,11 @@ const ChatInput: React.FC<ChatInputProps> = ({
 
   // Handle tag selection from typeahead - auto-enable vault search
   const handleTagSelected = useCallback(() => {
-    if (isCopilotPlus && !autonomousAgentToggle && !vaultToggle) {
+    if (isAdvancedMode && !autonomousAgentToggle && !vaultToggle) {
       setVaultToggle(true);
-      new Notice("Vault search enabled for tag query");
+      new Notice(t("chat.notice.vaultEnabled"));
     }
-  }, [isCopilotPlus, autonomousAgentToggle, vaultToggle]);
+  }, [isAdvancedMode, autonomousAgentToggle, vaultToggle, t]);
 
   return (
     <div
@@ -616,7 +601,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
               <button
                 className="remove-image-button"
                 onClick={() => setSelectedImages((prev) => prev.filter((_, i) => i !== index))}
-                title="Remove image"
+                title={t("chat.tooltip.removeImage")}
               >
                 <X className="tw-size-4" />
               </button>
@@ -642,18 +627,18 @@ const ChatInput: React.FC<ChatInputProps> = ({
           onNotesRemoved={handleNotePillsRemoved}
           onActiveNoteAdded={handleActiveNoteAdded}
           onActiveNoteRemoved={handleActiveNoteRemoved}
-          onURLsChange={isCopilotPlus ? setUrlsFromPills : undefined}
-          onURLsRemoved={isCopilotPlus ? handleURLPillsRemoved : undefined}
-          onToolsChange={isCopilotPlus ? setToolsFromPills : undefined}
-          onToolsRemoved={isCopilotPlus ? handleToolPillsRemoved : undefined}
+          onURLsChange={isAdvancedMode ? setUrlsFromPills : undefined}
+          onURLsRemoved={isAdvancedMode ? handleURLPillsRemoved : undefined}
+          onToolsChange={isAdvancedMode ? setToolsFromPills : undefined}
+          onToolsRemoved={isAdvancedMode ? handleToolPillsRemoved : undefined}
           onFoldersChange={setFoldersFromPills}
           onFoldersRemoved={handleFolderPillsRemoved}
           onEditorReady={onEditorReady}
           onImagePaste={onAddImage}
           onTagSelected={handleTagSelected}
-          placeholder={"Your AI assistant for Obsidian • @ to add context • / for custom prompts"}
+          placeholder={t("chat.placeholder")}
           disabled={isProjectLoading}
-          isCopilotPlus={isCopilotPlus}
+          isAdvancedMode={isAdvancedMode}
           currentActiveFile={currentActiveNote}
           currentChain={currentChain}
         />
@@ -663,7 +648,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
         {isGenerating ? (
           <div className="tw-flex tw-items-center tw-gap-1 tw-px-1 tw-text-sm tw-text-muted">
             <Loader2 className="tw-size-3 tw-animate-spin" />
-            <span>Generating...</span>
+            <span>{t("chat.status.generating")}</span>
           </div>
         ) : (
           <div className="tw-min-w-0 tw-flex-1">
@@ -693,22 +678,19 @@ const ChatInput: React.FC<ChatInputProps> = ({
               onClick={() => onStopGenerating()}
             >
               <StopCircle className="tw-size-4" />
-              Stop
+              {t("chat.button.stop")}
             </Button>
           ) : (
             <>
               <ChatToolControls
                 vaultToggle={vaultToggle}
                 setVaultToggle={setVaultToggle}
-                webToggle={webToggle}
-                setWebToggle={setWebToggle}
                 composerToggle={composerToggle}
                 setComposerToggle={setComposerToggle}
                 autonomousAgentToggle={autonomousAgentToggle}
                 setAutonomousAgentToggle={setAutonomousAgentToggle}
                 currentChain={currentChain}
                 onVaultToggleOff={handleVaultToggleOff}
-                onWebToggleOff={handleWebToggleOff}
                 onComposerToggleOff={handleComposerToggleOff}
               />
               <TooltipProvider delayDuration={0}>
@@ -725,7 +707,9 @@ const ChatInput: React.FC<ChatInputProps> = ({
                       <Image className="tw-size-4" />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent className="tw-px-1 tw-py-0.5">Add image(s)</TooltipContent>
+                  <TooltipContent className="tw-px-1 tw-py-0.5">
+                    {t("chat.tooltip.addImage")}
+                  </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
               {editMode && onEditCancel && (
@@ -735,7 +719,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
                   className="tw-text-muted"
                   onClick={onEditCancel}
                 >
-                  <span>cancel</span>
+                  <span>{t("chat.button.cancel")}</span>
                 </Button>
               )}
               <Button
@@ -745,7 +729,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
                 onClick={() => onSendMessage()}
               >
                 <CornerDownLeft className="!tw-size-3" />
-                <span>{editMode ? "save" : "chat"}</span>
+                <span>{editMode ? t("chat.button.save") : t("chat.button.chat")}</span>
               </Button>
             </>
           )}

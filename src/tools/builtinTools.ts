@@ -4,7 +4,7 @@ import { replaceInFileTool, writeToFileTool } from "./ComposerTools";
 import { createGetFileTreeTool } from "./FileTreeTools";
 import { updateMemoryTool } from "./memoryTools";
 import { readNoteTool } from "./NoteTools";
-import { localSearchTool, webSearchTool } from "./SearchTools";
+import { localSearchTool } from "./SearchTools";
 import { createGetTagListTool } from "./TagTools";
 import {
   convertTimeBetweenTimezonesTool,
@@ -13,7 +13,6 @@ import {
   getTimeRangeMsTool,
 } from "./TimeTools";
 import { ToolDefinition, ToolRegistry } from "./ToolRegistry";
-import { youtubeTranscriptionTool } from "./YoutubeTools";
 
 /**
  * Define all built-in tools with their metadata
@@ -91,30 +90,6 @@ For localSearch with non-English query (PRESERVE ORIGINAL LANGUAGE):
 </use_tool>`,
     },
   },
-  {
-    tool: webSearchTool,
-    metadata: {
-      id: "webSearch",
-      displayName: "Web Search",
-      description:
-        "Search the INTERNET (NOT vault notes) when user explicitly asks for web/online information",
-      category: "search",
-      copilotCommands: ["@websearch", "@web"],
-      customPromptInstructions: `For webSearch:
-- ONLY use when the user's query contains explicit web-search intent like:
-  * "web search", "internet search", "online search"
-  * "Google", "search online", "look up online", "search the web"
-- Always provide an empty chatHistory array
-
-Example - "search the web for python tutorials":
-<use_tool>
-<name>webSearch</name>
-<query>python tutorials</query>
-<chatHistory>[]</chatHistory>
-</use_tool>`,
-    },
-  },
-
   // Time tools (always enabled)
   {
     tool: getCurrentTimeTool,
@@ -295,25 +270,6 @@ Example usage:
 - Bob Johnson
 +++++++ REPLACE
 </diff>
-</use_tool>`,
-    },
-  },
-
-  // Media tools
-  {
-    tool: youtubeTranscriptionTool,
-    metadata: {
-      id: "youtubeTranscription",
-      displayName: "YouTube Transcription",
-      description: "Get transcripts from YouTube videos",
-      category: "media",
-      customPromptInstructions: `For youtubeTranscription:
-- Use when user provides YouTube URLs
-- No parameters needed - the tool will process URLs from the conversation
-
-Example usage:
-<use_tool>
-<name>youtubeTranscription</name>
 </use_tool>`,
     },
   },

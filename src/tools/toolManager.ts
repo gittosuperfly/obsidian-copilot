@@ -4,8 +4,6 @@ export const getToolDescription = (tool: string): string => {
   switch (tool) {
     case "@vault":
       return "Search through your vault for relevant information";
-    case "@websearch":
-      return "Search the web for information";
     case "@composer":
       return "Edit existing notes or create new notes.";
     case "@memory":

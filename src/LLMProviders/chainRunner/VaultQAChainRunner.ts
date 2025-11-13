@@ -102,7 +102,6 @@ export class VaultQAChainRunner extends BaseChainRunner {
         timeRange: undefined,
         textWeight: undefined,
         returnAll: false,
-        useRerankerThreshold: undefined,
       };
 
       const retriever = settings.enableSemanticSearchV3

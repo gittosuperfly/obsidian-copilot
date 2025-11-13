@@ -1,7 +1,6 @@
-import { CustomModel } from "@/aiParams";
+import { CustomModel, ModelProvider } from "@/aiParams";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   Dialog,
   DialogContent,
@@ -10,10 +9,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { FormField } from "@/components/ui/form-field";
-import { HelpTooltip } from "@/components/ui/help-tooltip";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { PasswordInput } from "@/components/ui/password-input";
 import {
   Select,
   SelectContent,
@@ -21,83 +17,66 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import {
-  ChatModelProviders,
-  EmbeddingModelProviders,
-  MODEL_CAPABILITIES,
-  ModelCapability,
-  Provider,
-  ProviderMetadata,
-  ProviderSettingsKeyMap,
-  SettingKeyProviders,
-} from "@/constants";
+import { MODEL_CAPABILITIES, ModelCapability } from "@/constants";
 import { useTab } from "@/contexts/TabContext";
-import { logError } from "@/logger";
-import { getSettings } from "@/settings/model";
-import { err2String, getProviderInfo, getProviderLabel, omit } from "@/utils";
-import { ChevronDown, Loader2 } from "lucide-react";
-import { Notice } from "obsidian";
-import React, { useState } from "react";
+import { useI18n } from "@/i18n";
+import { Loader2 } from "lucide-react";
+import React, { useEffect, useState } from "react";
 
 interface FormErrors {
   name: boolean;
-  instanceName: boolean;
-  deploymentName: boolean;
-  embeddingDeploymentName: boolean;
-  apiVersion: boolean;
-  displayName: boolean;
-  bedrockRegion: boolean;
 }
 
 interface ModelAddDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  provider: ModelProvider | null;
   onAdd: (model: CustomModel) => void;
   ping: (model: CustomModel) => Promise<boolean>;
-  isEmbeddingModel?: boolean;
 }
 
+/**
+ * Simplified ModelAddDialog for the provider-centric architecture.
+ * Users select a provider first, then add models to it.
+ */
 export const ModelAddDialog: React.FC<ModelAddDialogProps> = ({
   open,
   onOpenChange,
+  provider,
   onAdd,
   ping,
-  isEmbeddingModel = false,
 }) => {
   const { modalContainer } = useTab();
-  const settings = getSettings();
-  const defaultProvider = isEmbeddingModel
-    ? EmbeddingModelProviders.OPENAI
-    : ChatModelProviders.OPENROUTERAI;
+  const { t } = useI18n();
 
-  const [dialogElement, setDialogElement] = useState<HTMLDivElement | null>(null);
-  const [isOpen, setIsOpen] = useState(false);
+  const [model, setModel] = useState<CustomModel>({
+    name: "",
+    providerId: provider?.id || "",
+    enabled: true,
+    stream: true,
+    temperature: 0.7,
+    maxTokens: 4000,
+    capabilities: [],
+  });
+
   const [isVerifying, setIsVerifying] = useState(false);
   const [errors, setErrors] = useState<FormErrors>({
     name: false,
-    instanceName: false,
-    deploymentName: false,
-    embeddingDeploymentName: false,
-    apiVersion: false,
-    displayName: false,
-    bedrockRegion: false,
   });
+
+  // Update providerId when provider changes
+  useEffect(() => {
+    if (provider) {
+      setModel((prev) => ({ ...prev, providerId: provider.id }));
+    }
+  }, [provider]);
 
   const setError = (field: keyof FormErrors, value: boolean) => {
     setErrors((prev) => ({ ...prev, [field]: value }));
   };
 
   const clearErrors = () => {
-    setErrors({
-      name: false,
-      instanceName: false,
-      deploymentName: false,
-      embeddingDeploymentName: false,
-      apiVersion: false,
-      displayName: false,
-      bedrockRegion: false,
-    });
+    setErrors({ name: false });
   };
 
   const validateFields = (): boolean => {
@@ -105,364 +84,106 @@ export const ModelAddDialog: React.FC<ModelAddDialogProps> = ({
     const newErrors = { ...errors };
 
     // Validate name
-    newErrors.name = !model.name;
-    if (!model.name) isValid = false;
-
-    // Validate Azure OpenAI specific fields
-    if (model.provider === ChatModelProviders.AZURE_OPENAI) {
-      newErrors.instanceName = !model.azureOpenAIApiInstanceName;
-      newErrors.apiVersion = !model.azureOpenAIApiVersion;
-
-      if (isEmbeddingModel) {
-        newErrors.embeddingDeploymentName = !model.azureOpenAIApiEmbeddingDeploymentName;
-        if (!model.azureOpenAIApiEmbeddingDeploymentName) isValid = false;
-      } else {
-        newErrors.deploymentName = !model.azureOpenAIApiDeploymentName;
-        if (!model.azureOpenAIApiDeploymentName) isValid = false;
-      }
-
-      if (!model.azureOpenAIApiInstanceName || !model.azureOpenAIApiVersion) {
-        isValid = false;
-      }
-    }
-
-    if (model.provider === ChatModelProviders.AMAZON_BEDROCK) {
-      newErrors.bedrockRegion = false;
-    } else {
-      newErrors.bedrockRegion = false;
-    }
+    newErrors.name = !model.name.trim();
+    if (!model.name.trim()) isValid = false;
 
     setErrors(newErrors);
     return isValid;
   };
 
-  const getDefaultApiKey = (provider: Provider): string => {
-    return (settings[ProviderSettingsKeyMap[provider as SettingKeyProviders]] as string) || "";
-  };
-
-  const getInitialModel = (provider = defaultProvider): CustomModel => {
-    const baseModel = {
-      name: "",
-      provider,
-      enabled: true,
-      isBuiltIn: false,
-      baseUrl: "",
-      apiKey: getDefaultApiKey(provider),
-      isEmbeddingModel,
-      capabilities: [],
-    };
-
-    if (!isEmbeddingModel) {
-      const chatModel = {
-        ...baseModel,
-        stream: true,
-      };
-
-      if (provider === ChatModelProviders.AMAZON_BEDROCK) {
-        return {
-          ...chatModel,
-          bedrockRegion: settings.amazonBedrockRegion,
-        };
-      }
-
-      return chatModel;
-    }
-
-    return baseModel;
-  };
-
-  const [model, setModel] = useState<CustomModel>(getInitialModel());
-
-  // Clean up model data by trimming whitespace
-  const getCleanedModel = (modelData: CustomModel): CustomModel => {
-    return {
-      ...modelData,
-      name: modelData.name?.trim(),
-      baseUrl: modelData.baseUrl?.trim(),
-      apiKey: modelData.apiKey?.trim(),
-      openAIOrgId: modelData.openAIOrgId?.trim(),
-      azureOpenAIApiInstanceName: modelData.azureOpenAIApiInstanceName?.trim(),
-      azureOpenAIApiDeploymentName: modelData.azureOpenAIApiDeploymentName?.trim(),
-      azureOpenAIApiEmbeddingDeploymentName:
-        modelData.azureOpenAIApiEmbeddingDeploymentName?.trim(),
-      azureOpenAIApiVersion: modelData.azureOpenAIApiVersion?.trim(),
-      bedrockRegion: modelData.bedrockRegion?.trim(),
-    };
-  };
-
-  const [providerInfo, setProviderInfo] = useState<ProviderMetadata>(
-    getProviderInfo(defaultProvider)
-  );
-
-  // Check if the form has required fields filled
-  const isFormValid = (): boolean => {
-    return Boolean(model.name && model.provider);
-  };
-
-  // Check if buttons should be disabled
-  const isButtonDisabled = (): boolean => {
-    return isVerifying || !isFormValid();
-  };
-
-  const handleAdd = () => {
-    if (!validateFields()) {
-      new Notice("Please fill in all required fields");
+  const handleAdd = async () => {
+    if (!validateFields() || !provider) {
       return;
     }
 
-    const cleanedModel = getCleanedModel(model);
-    onAdd(cleanedModel);
-    onOpenChange(false);
-    setModel(getInitialModel());
-    clearErrors();
-  };
-
-  const handleProviderChange = (provider: ChatModelProviders) => {
-    setProviderInfo(getProviderInfo(provider));
-    setModel({
-      ...model,
-      provider,
-      apiKey: getDefaultApiKey(provider),
-      ...(provider === ChatModelProviders.OPENAI ? { openAIOrgId: settings.openAIOrgId } : {}),
-      ...(provider === ChatModelProviders.AZURE_OPENAI
-        ? {
-            azureOpenAIApiInstanceName: settings.azureOpenAIApiInstanceName,
-            azureOpenAIApiDeploymentName: settings.azureOpenAIApiDeploymentName,
-            azureOpenAIApiVersion: settings.azureOpenAIApiVersion,
-            azureOpenAIApiEmbeddingDeploymentName: settings.azureOpenAIApiEmbeddingDeploymentName,
-          }
-        : {}),
-      ...(provider === ChatModelProviders.AMAZON_BEDROCK
-        ? {
-            bedrockRegion: settings.amazonBedrockRegion,
-          }
-        : {
-            bedrockRegion: undefined,
-          }),
-    });
-  };
-  const handleOpenChange = (open: boolean) => {
-    if (!open) {
-      setModel(getInitialModel());
-      clearErrors();
-      setIsOpen(false);
-    }
-    onOpenChange(open);
+    onAdd(model);
+    handleClose();
   };
 
   const handleVerify = async () => {
-    if (!validateFields()) {
-      new Notice("Please fill in all required fields");
+    if (!validateFields() || !provider) {
       return;
     }
 
     setIsVerifying(true);
     try {
-      const cleanedModel = getCleanedModel(model);
-      await ping(cleanedModel);
-      new Notice("Model verification successful!");
-    } catch (err) {
-      logError(err);
-      const errStr = err2String(err);
-      new Notice("Model verification failed: " + errStr);
+      const success = await ping(model);
+      if (success) {
+        alert(t("settings.models.notice.pingSuccess"));
+      } else {
+        alert(t("settings.models.notice.pingFailed"));
+      }
+    } catch (error) {
+      alert(t("settings.models.notice.pingError", { error: String(error) }));
     } finally {
       setIsVerifying(false);
     }
   };
 
-  const renderProviderSpecificFields = () => {
-    const fields = () => {
-      switch (model.provider) {
-        case ChatModelProviders.OPENAI:
-          return (
-            <FormField
-              label="OpenAI Organization ID"
-              description="Enter OpenAI Organization ID if applicable"
-            >
-              <Input
-                type="text"
-                placeholder="Enter OpenAI Organization ID if applicable"
-                value={model.openAIOrgId || ""}
-                onChange={(e) => setModel({ ...model, openAIOrgId: e.target.value })}
-              />
-            </FormField>
-          );
-        case ChatModelProviders.AZURE_OPENAI:
-          return (
-            <>
-              <FormField
-                label="Instance Name"
-                required
-                error={errors.instanceName}
-                errorMessage="Instance name is required"
-              >
-                <Input
-                  type="text"
-                  placeholder="Enter Azure OpenAI API Instance Name"
-                  value={model.azureOpenAIApiInstanceName || ""}
-                  onChange={(e) => {
-                    setModel({ ...model, azureOpenAIApiInstanceName: e.target.value });
-                    setError("instanceName", false);
-                  }}
-                />
-              </FormField>
-
-              {!isEmbeddingModel ? (
-                <FormField
-                  label="Deployment Name"
-                  required
-                  error={errors.deploymentName}
-                  errorMessage="Deployment name is required"
-                  description="This is your actual model, no need to pass a model name separately."
-                >
-                  <Input
-                    type="text"
-                    placeholder="Enter Azure OpenAI API Deployment Name"
-                    value={model.azureOpenAIApiDeploymentName || ""}
-                    onChange={(e) => {
-                      setModel({ ...model, azureOpenAIApiDeploymentName: e.target.value });
-                      setError("deploymentName", false);
-                    }}
-                  />
-                </FormField>
-              ) : (
-                <FormField
-                  label="Embedding Deployment Name"
-                  required
-                  error={errors.embeddingDeploymentName}
-                  errorMessage="Embedding deployment name is required"
-                >
-                  <Input
-                    type="text"
-                    placeholder="Enter Azure OpenAI API Embedding Deployment Name"
-                    value={model.azureOpenAIApiEmbeddingDeploymentName || ""}
-                    onChange={(e) => {
-                      setModel({ ...model, azureOpenAIApiEmbeddingDeploymentName: e.target.value });
-                      setError("embeddingDeploymentName", false);
-                    }}
-                  />
-                </FormField>
-              )}
-
-              <FormField
-                label="API Version"
-                required
-                error={errors.apiVersion}
-                errorMessage="API version is required"
-              >
-                <Input
-                  type="text"
-                  placeholder="Enter Azure OpenAI API Version"
-                  value={model.azureOpenAIApiVersion || ""}
-                  onChange={(e) => {
-                    setModel({ ...model, azureOpenAIApiVersion: e.target.value });
-                    setError("apiVersion", false);
-                  }}
-                />
-              </FormField>
-            </>
-          );
-        case ChatModelProviders.AMAZON_BEDROCK:
-          return (
-            <FormField
-              label="Region (optional)"
-              description="Defaults to us-east-1 when left blank. With inference profiles (global., us., eu., apac.), region is auto-managed."
-            >
-              <Input
-                type="text"
-                placeholder="Enter AWS region (e.g. us-east-1)"
-                value={model.bedrockRegion || ""}
-                onChange={(e) => {
-                  setModel({ ...model, bedrockRegion: e.target.value });
-                  setError("bedrockRegion", false);
-                }}
-              />
-            </FormField>
-          );
-        default:
-          return null;
-      }
-    };
-
-    const content = fields();
-    if (!content) return null;
-
-    return (
-      <Collapsible
-        open={isOpen}
-        onOpenChange={setIsOpen}
-        className="tw-space-y-2 tw-rounded-lg tw-border tw-pt-4"
-      >
-        <div className="tw-flex tw-items-center tw-justify-between">
-          <Label>Additional {getProviderLabel(model.provider)} Settings</Label>
-          <CollapsibleTrigger asChild>
-            <Button variant="ghost" size="sm" className="tw-w-9 tw-p-0">
-              <ChevronDown className="tw-size-4" />
-              <span className="tw-sr-only">Toggle</span>
-            </Button>
-          </CollapsibleTrigger>
-        </div>
-        <CollapsibleContent className="tw-max-h-[200px] tw-space-y-4 tw-overflow-y-auto tw-pb-0.5 tw-pl-0.5 tw-pr-2">
-          {content}
-        </CollapsibleContent>
-      </Collapsible>
-    );
+  const handleClose = () => {
+    // Reset form
+    setModel({
+      name: "",
+      providerId: provider?.id || "",
+      enabled: true,
+      stream: true,
+      temperature: 0.7,
+      maxTokens: 4000,
+      capabilities: [],
+    });
+    clearErrors();
+    onOpenChange(false);
   };
 
-  const getPlaceholderUrl = () => {
-    if (model.provider !== ChatModelProviders.AZURE_OPENAI) {
-      return providerInfo.host;
-    }
+  const toggleCapability = (capability: ModelCapability) => {
+    const capabilities = model.capabilities || [];
+    const hasCapability = capabilities.includes(capability);
 
-    const instanceName = model.azureOpenAIApiInstanceName || "[instance]";
-    const deploymentName = isEmbeddingModel
-      ? model.azureOpenAIApiEmbeddingDeploymentName || "[deployment]"
-      : model.azureOpenAIApiDeploymentName || "[deployment]";
-    const apiVersion = model.azureOpenAIApiVersion || "[api-version]";
-    const endpoint = isEmbeddingModel ? "embeddings" : "chat/completions";
-
-    return `https://${instanceName}.openai.azure.com/openai/deployments/${deploymentName}/${endpoint}?api-version=${apiVersion}`;
+    setModel({
+      ...model,
+      capabilities: hasCapability
+        ? capabilities.filter((c) => c !== capability)
+        : [...capabilities, capability],
+    });
   };
 
-  const capabilityOptions = Object.entries(MODEL_CAPABILITIES).map(([id, description]) => ({
-    id,
-    label: id.charAt(0).toUpperCase() + id.slice(1),
-    description,
-  })) as Array<{ id: ModelCapability; label: string; description: string }>;
+  if (!provider) {
+    return null;
+  }
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+    <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent
-        className="sm:tw-max-w-[425px]"
+        className="tw-max-h-[85vh] tw-max-w-2xl tw-overflow-y-auto"
         container={modalContainer}
-        ref={(el) => setDialogElement(el)}
       >
         <DialogHeader>
-          <DialogTitle>Add Custom {isEmbeddingModel ? "Embedding" : "Chat"} Model</DialogTitle>
-          <DialogDescription>Add a new model to your collection.</DialogDescription>
+          <DialogTitle>{t("settings.models.addDialog.title")}</DialogTitle>
+          <DialogDescription>
+            {t("settings.models.addDialog.description", { provider: provider.name })}
+          </DialogDescription>
         </DialogHeader>
 
-        <div className="tw-space-y-3">
+        <div className="tw-space-y-4 tw-py-4">
+          {/* Provider Info (Read-only) */}
+          <div className="tw-rounded tw-border tw-border-border tw-bg-secondary tw-p-3">
+            <div className="tw-mb-1 tw-text-sm tw-text-muted">
+              {t("settings.models.addDialog.provider")}
+            </div>
+            <div className="tw-font-medium tw-text-normal">{provider.name}</div>
+            <div className="tw-mt-1 tw-text-xs tw-text-muted">{provider.baseUrl}</div>
+          </div>
+
+          {/* Model Name */}
           <FormField
-            label="Model Name"
-            required
+            label={t("settings.models.addDialog.name.label")}
+            description={t("settings.models.addDialog.name.description")}
             error={errors.name}
-            errorMessage="Model name is required"
-            description={
-              model.provider === ChatModelProviders.AMAZON_BEDROCK && !isEmbeddingModel
-                ? "For Bedrock, use cross-region inference profile IDs (global., us., eu., or apac. prefix) for better reliability. Regional IDs without prefixes may fail."
-                : undefined
-            }
+            errorMessage={t("settings.models.addDialog.name.error")}
           >
             <Input
               type="text"
-              placeholder={`Enter model name (e.g. ${
-                model.provider === ChatModelProviders.AMAZON_BEDROCK && !isEmbeddingModel
-                  ? "global.anthropic.claude-sonnet-4-5-20250929-v1:0"
-                  : isEmbeddingModel
-                    ? "text-embedding-3-small"
-                    : "gpt-4"
-              })`}
+              placeholder={t("settings.models.addDialog.name.placeholder")}
               value={model.name}
               onChange={(e) => {
                 setModel({ ...model, name: e.target.value });
@@ -471,170 +192,136 @@ export const ModelAddDialog: React.FC<ModelAddDialogProps> = ({
             />
           </FormField>
 
+          {/* Display Name (Optional) */}
           <FormField
-            label={
-              <div className="tw-flex tw-items-center tw-gap-1.5">
-                <span className="tw-leading-none">Display Name</span>
-                <HelpTooltip
-                  content={
-                    <div className="tw-flex tw-flex-col tw-gap-0.5 tw-text-sm tw-text-muted">
-                      <div className="tw-text-[12px] tw-font-bold">Suggested format:</div>
-                      <div className="tw-text-accent">[Source]-[Payment]:[Pretty Model Name]</div>
-                      <div className="tw-text-[12px]">
-                        Example:
-                        <li>Direct-Paid:Ds-r1</li>
-                        <li>OpenRouter-Paid:Ds-r1</li>
-                        <li>Perplexity-Paid:lg</li>
-                      </div>
-                    </div>
-                  }
-                  contentClassName="tw-max-w-96"
-                />
-              </div>
-            }
+            label={t("settings.models.addDialog.displayName.label")}
+            description={t("settings.models.addDialog.displayName.description")}
           >
             <Input
               type="text"
-              placeholder="Custom display name (optional)"
+              placeholder={t("settings.models.addDialog.displayName.placeholder")}
               value={model.displayName || ""}
-              onChange={(e) => {
-                setModel({ ...model, displayName: e.target.value });
-              }}
+              onChange={(e) => setModel({ ...model, displayName: e.target.value })}
             />
           </FormField>
 
-          <FormField label="Provider">
-            <Select value={model.provider} onValueChange={handleProviderChange}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select provider" />
-              </SelectTrigger>
-              <SelectContent container={dialogElement}>
-                {Object.values(
-                  isEmbeddingModel
-                    ? omit(EmbeddingModelProviders, ["COPILOT_PLUS", "COPILOT_PLUS_JINA"])
-                    : omit(ChatModelProviders, ["COPILOT_PLUS"])
-                ).map((provider) => (
-                  <SelectItem key={provider} value={provider}>
-                    {getProviderLabel(provider)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </FormField>
-
-          <FormField label="Base URL" description="Leave it blank, unless you are using a proxy.">
-            <Input
-              type="text"
-              placeholder={getPlaceholderUrl() || "https://api.example.com/v1"}
-              value={model.baseUrl || ""}
-              onChange={(e) => setModel({ ...model, baseUrl: e.target.value })}
-            />
-          </FormField>
-
-          <FormField label="API Key">
-            <PasswordInput
-              placeholder={`Enter ${providerInfo.label} API Key`}
-              value={model.apiKey || ""}
-              onChange={(value) => setModel({ ...model, apiKey: value })}
-            />
-            {providerInfo.keyManagementURL && (
-              <p className="tw-text-xs tw-text-muted">
-                <a href={providerInfo.keyManagementURL} target="_blank" rel="noopener noreferrer">
-                  Get {providerInfo.label} API Key
-                </a>
-              </p>
-            )}
-          </FormField>
-
+          {/* Capabilities */}
           <FormField
-            label={
-              <div className="tw-flex tw-items-center tw-gap-1.5">
-                <span className="tw-leading-none">Model Capabilities</span>
-                <HelpTooltip
-                  content={
-                    <div className="tw-text-sm tw-text-muted">
-                      Only used to display model capabilities, does not affect model functionality
-                    </div>
-                  }
-                  contentClassName="tw-max-w-96"
-                />
-              </div>
-            }
+            label={t("settings.models.addDialog.capabilities.label")}
+            description={t("settings.models.addDialog.capabilities.description")}
           >
-            <div className="tw-flex tw-items-center tw-gap-4">
-              {capabilityOptions.map(({ id, label, description }) => (
-                <div key={id} className="tw-flex tw-items-center tw-gap-2">
-                  <Checkbox
-                    id={id}
-                    checked={model.capabilities?.includes(id)}
-                    onCheckedChange={(checked) => {
-                      const newCapabilities = model.capabilities || [];
-                      setModel({
-                        ...model,
-                        capabilities: checked
-                          ? [...newCapabilities, id]
-                          : newCapabilities.filter((cap) => cap !== id),
-                      });
-                    }}
-                  />
-                  <HelpTooltip content={description}>
-                    <Label htmlFor={id} className="tw-text-sm">
-                      {label}
-                    </Label>
-                  </HelpTooltip>
-                </div>
-              ))}
+            <div className="tw-space-y-2">
+              {Object.entries(MODEL_CAPABILITIES).map(([key, capability]) => {
+                const capabilityKey = key as ModelCapability;
+                const isSelected = model.capabilities?.includes(capabilityKey) || false;
+
+                return (
+                  <label
+                    key={capabilityKey}
+                    className="tw-flex tw-cursor-pointer tw-items-center tw-gap-2"
+                  >
+                    <Checkbox
+                      checked={isSelected}
+                      onCheckedChange={() => toggleCapability(capabilityKey)}
+                    />
+                    <span className="tw-text-sm">{t(capability.labelKey)}</span>
+                  </label>
+                );
+              })}
             </div>
           </FormField>
 
-          {renderProviderSpecificFields()}
+          {/* Temperature */}
+          <FormField
+            label={t("settings.models.addDialog.temperature.label")}
+            description={t("settings.models.addDialog.temperature.description")}
+          >
+            <Input
+              type="number"
+              min={0}
+              max={2}
+              step={0.1}
+              value={model.temperature || 0.7}
+              onChange={(e) =>
+                setModel({ ...model, temperature: parseFloat(e.target.value) || 0.7 })
+              }
+            />
+          </FormField>
+
+          {/* Max Tokens */}
+          <FormField
+            label={t("settings.models.addDialog.maxTokens.label")}
+            description={t("settings.models.addDialog.maxTokens.description")}
+          >
+            <Input
+              type="number"
+              min={1}
+              max={1000000}
+              step={100}
+              value={model.maxTokens || 4000}
+              onChange={(e) => setModel({ ...model, maxTokens: parseInt(e.target.value) || 4000 })}
+            />
+          </FormField>
+
+          {/* Reasoning Effort (for reasoning models) */}
+          {model.capabilities?.includes(ModelCapability.REASONING) && (
+            <FormField
+              label={t("settings.models.addDialog.reasoningEffort.label")}
+              description={t("settings.models.addDialog.reasoningEffort.description")}
+            >
+              <Select
+                value={model.reasoningEffort || "medium"}
+                onValueChange={(value: "minimal" | "low" | "medium" | "high") =>
+                  setModel({ ...model, reasoningEffort: value })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="minimal">
+                    {t("settings.models.reasoningEffort.minimal")}
+                  </SelectItem>
+                  <SelectItem value="low">{t("settings.models.reasoningEffort.low")}</SelectItem>
+                  <SelectItem value="medium">
+                    {t("settings.models.reasoningEffort.medium")}
+                  </SelectItem>
+                  <SelectItem value="high">{t("settings.models.reasoningEffort.high")}</SelectItem>
+                </SelectContent>
+              </Select>
+            </FormField>
+          )}
+
+          {/* Stream */}
+          <label className="tw-flex tw-cursor-pointer tw-items-center tw-gap-2">
+            <Checkbox
+              checked={model.stream}
+              onCheckedChange={(checked) => setModel({ ...model, stream: !!checked })}
+            />
+            <span className="tw-text-sm">{t("settings.models.addDialog.stream")}</span>
+          </label>
+
+          {/* Enabled */}
+          <label className="tw-flex tw-cursor-pointer tw-items-center tw-gap-2">
+            <Checkbox
+              checked={model.enabled}
+              onCheckedChange={(checked) => setModel({ ...model, enabled: !!checked })}
+            />
+            <span className="tw-text-sm">{t("settings.models.addDialog.enabled")}</span>
+          </label>
         </div>
 
-        <div className="tw-flex tw-items-center  tw-justify-between tw-gap-4">
-          <div className="tw-flex tw-items-center tw-gap-2">
-            <Checkbox
-              id="enable-cors"
-              checked={model.enableCors || false}
-              onCheckedChange={(checked: boolean) => setModel({ ...model, enableCors: checked })}
-            />
-            <Label htmlFor="enable-cors">
-              <div className="tw-flex tw-items-center tw-gap-0.5">
-                <span className="tw-text-xs md:tw-text-sm">CORS</span>
-                <HelpTooltip
-                  content={
-                    <div className="tw-text-sm tw-text-muted">
-                      Only check this option when prompted that CORS is needed
-                    </div>
-                  }
-                  contentClassName="tw-max-w-96"
-                />
-              </div>
-            </Label>
+        <div className="tw-flex tw-justify-between tw-gap-2">
+          <Button variant="secondary" onClick={handleVerify} disabled={isVerifying}>
+            {isVerifying && <Loader2 className="tw-mr-2 tw-size-4 tw-animate-spin" />}
+            {t("settings.models.addDialog.verify")}
+          </Button>
+          <div className="tw-flex tw-gap-2">
+            <Button variant="secondary" onClick={handleClose}>
+              {t("common.cancel")}
+            </Button>
+            <Button onClick={handleAdd}>{t("common.add")}</Button>
           </div>
-          <TooltipProvider>
-            <div className="tw-flex tw-gap-2 tw-text-xs md:tw-text-sm">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="ghost" onClick={handleVerify} disabled={isButtonDisabled()}>
-                    {isVerifying ? (
-                      <>
-                        <Loader2 className="tw-mr-2 tw-size-2 tw-animate-spin md:tw-size-4 " />
-                        Test
-                      </>
-                    ) : (
-                      "Test"
-                    )}
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Optional: test API call</p>
-                </TooltipContent>
-              </Tooltip>
-              <Button variant="default" onClick={handleAdd} disabled={isButtonDisabled()}>
-                Add Model
-              </Button>
-            </div>
-          </TooltipProvider>
         </div>
       </DialogContent>
     </Dialog>

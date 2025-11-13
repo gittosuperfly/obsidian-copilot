@@ -1,7 +1,8 @@
 import React from "react";
-import { CustomModel } from "@/aiParams";
+import { CustomModel, getProviderType } from "@/aiParams";
 import { getProviderLabel } from "@/utils";
-import { Lightbulb, Eye, Globe } from "lucide-react";
+import { getSettings } from "@/settings/model";
+import { Lightbulb, Eye } from "lucide-react";
 import { ModelCapability } from "@/constants";
 
 interface ModelDisplayProps {
@@ -40,14 +41,6 @@ export const ModelCapabilityIcons: React.FC<ModelCapabilityIconsProps> = ({
                   style={{ width: iconSize, height: iconSize }}
                 />
               );
-            case ModelCapability.WEB_SEARCH:
-              return (
-                <Globe
-                  key={index}
-                  className="tw-text-model-capabilities-blue"
-                  style={{ width: iconSize, height: iconSize }}
-                />
-              );
             default:
               return null;
           }
@@ -72,13 +65,15 @@ export const ModelDisplay: React.FC<ModelDisplayProps> = ({ model, iconSize = 14
 
 export const getModelDisplayText = (model: CustomModel): string => {
   const displayName = model.displayName || model.name;
-  const provider = `(${getProviderLabel(model.provider)})`;
+  const providerType = getProviderType(model, getSettings().providers);
+  const provider = `(${getProviderLabel(providerType)})`;
   return `${displayName} ${provider}`;
 };
 
 export const getModelDisplayWithIcons = (model: CustomModel): string => {
   const displayName = model.displayName || model.name;
-  const provider = `(${getProviderLabel(model.provider, model)})`;
+  const providerType = getProviderType(model, getSettings().providers);
+  const provider = `(${getProviderLabel(providerType, model)})`;
   const icons =
     model.capabilities
       ?.map((cap) => {
@@ -87,8 +82,6 @@ export const getModelDisplayWithIcons = (model: CustomModel): string => {
             return "Reasoning";
           case ModelCapability.VISION:
             return "Vision";
-          case ModelCapability.WEB_SEARCH:
-            return "Websearch";
           default:
             return "";
         }
