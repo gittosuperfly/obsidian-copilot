@@ -33,7 +33,6 @@ export const InlineMessageEditor: React.FC<InlineMessageEditorProps> = ({
   const [contextNotes, setContextNotes] = useState<TFile[]>(
     initialContext?.notes?.map((note) => note as TFile) || []
   );
-  const [includeActiveNote, setIncludeActiveNote] = useState(false);
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
 
   // Handle saving the edited message
@@ -105,8 +104,6 @@ export const InlineMessageEditor: React.FC<InlineMessageEditorProps> = ({
       app={app}
       contextNotes={contextNotes}
       setContextNotes={setContextNotes}
-      includeActiveNote={includeActiveNote}
-      setIncludeActiveNote={setIncludeActiveNote}
       selectedImages={selectedImages}
       onAddImage={handleAddImage}
       setSelectedImages={setSelectedImages}

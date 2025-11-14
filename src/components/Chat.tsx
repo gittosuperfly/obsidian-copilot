@@ -99,7 +99,6 @@ const ChatInternal: React.FC<ChatProps & { chatInput: ReturnType<typeof useChatI
   const [loading, setLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState(LOADING_MESSAGES.DEFAULT);
   const [contextNotes, setContextNotes] = useState<TFile[]>([]);
-  const [includeActiveNote, setIncludeActiveNote] = useState(false);
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
   const [showChatUI, setShowChatUI] = useState(false);
   const [chatHistoryItems, setChatHistoryItems] = useState<ChatHistoryItem[]>([]);
@@ -127,8 +126,6 @@ const ChatInternal: React.FC<ChatProps & { chatInput: ReturnType<typeof useChatI
   );
 
   const [selectedTextContexts] = useSelectedTextContexts();
-  const hasSelectedTextContext = selectedTextContexts.length > 0;
-  const effectiveIncludeActiveNote = includeActiveNote && !hasSelectedTextContext;
   const projectContextStatus = useProjectContextStatus();
 
   // Calculate whether to show ProgressCard based on status and user preference
@@ -252,7 +249,7 @@ const ChatInternal: React.FC<ChatProps & { chatInput: ReturnType<typeof useChatI
         displayText,
         context,
         currentChain,
-        effectiveIncludeActiveNote,
+        false,
         content.length > 0 ? content : undefined
       );
 
@@ -396,7 +393,7 @@ const ChatInternal: React.FC<ChatProps & { chatInput: ReturnType<typeof useChatI
           messageToEdit.id!,
           newMessage,
           currentChain,
-          effectiveIncludeActiveNote
+          false
         );
 
         if (!success) {
@@ -449,7 +446,6 @@ const ChatInternal: React.FC<ChatProps & { chatInput: ReturnType<typeof useChatI
       chatHistory,
       chatUIState,
       currentChain,
-      effectiveIncludeActiveNote,
       addMessage,
       chainManager,
       settings.debug,
@@ -601,20 +597,12 @@ const ChatInternal: React.FC<ChatProps & { chatInput: ReturnType<typeof useChatI
     setContextNotes([]);
     setLatestTokenCount(null); // Clear token count on new chat
     clearSelectedTextContexts();
-    // Respect the includeActiveNote setting for all non-project chains
-    if (selectedChain === ChainType.PROJECT_CHAIN) {
-      setIncludeActiveNote(false);
-    } else {
-      setIncludeActiveNote(settings.includeActiveNoteAsContext);
-    }
   }, [
     handleStopGenerating,
     chainManager.chatModelManager,
     chatUIState,
     settings.autosaveChat,
     settings.enableRecentConversations,
-    settings.includeActiveNoteAsContext,
-    selectedChain,
     handleSaveAsNote,
     safeSet,
     plugin.userMemoryManager,
@@ -697,18 +685,6 @@ const ChatInternal: React.FC<ChatProps & { chatInput: ReturnType<typeof useChatI
     };
   }, [eventTarget, handleStopGenerating]);
 
-  // Use the includeActiveNoteAsContext setting
-  useEffect(() => {
-    if (settings.includeActiveNoteAsContext !== undefined) {
-      // Only apply the setting if not in Project mode
-      if (selectedChain === ChainType.PROJECT_CHAIN) {
-        setIncludeActiveNote(false);
-      } else {
-        setIncludeActiveNote(settings.includeActiveNoteAsContext);
-      }
-    }
-  }, [settings.includeActiveNoteAsContext, selectedChain]);
-
   // Note: pendingMessages loading has been removed as ChatManager now handles
   // message persistence and loading automatically based on project context
 
@@ -779,8 +755,6 @@ const ChatInternal: React.FC<ChatProps & { chatInput: ReturnType<typeof useChatI
               app={app}
               contextNotes={contextNotes}
               setContextNotes={setContextNotes}
-              includeActiveNote={includeActiveNote}
-              setIncludeActiveNote={setIncludeActiveNote}
               selectedImages={selectedImages}
               onAddImage={(files: File[]) => setSelectedImages((prev) => [...prev, ...files])}
               setSelectedImages={setSelectedImages}

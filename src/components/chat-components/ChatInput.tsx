@@ -23,11 +23,6 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { $getSelection, $isRangeSelection, $getRoot } from "lexical";
 import { ContextControl } from "./ContextControl";
 import { $removePillsByPath, $createNotePillNode } from "./pills/NotePillNode";
-import {
-  $removeActiveNotePills,
-  $createActiveNotePillNode,
-  $isActiveNotePillNode,
-} from "./pills/ActiveNotePillNode";
 import { $removePillsByURL } from "./pills/URLPillNode";
 import { $removePillsByFolder, $createFolderPillNode } from "./pills/FolderPillNode";
 import { $removePillsByToolName, $createToolPillNode } from "./pills/ToolPillNode";
@@ -52,8 +47,6 @@ interface ChatInputProps {
   app: App;
   contextNotes: TFile[];
   setContextNotes: React.Dispatch<React.SetStateAction<TFile[]>>;
-  includeActiveNote: boolean;
-  setIncludeActiveNote: (include: boolean) => void;
   selectedImages: File[];
   onAddImage: (files: File[]) => void;
   setSelectedImages: React.Dispatch<React.SetStateAction<File[]>>;
@@ -89,8 +82,6 @@ const ChatInput: React.FC<ChatInputProps> = ({
   app,
   contextNotes,
   setContextNotes,
-  includeActiveNote,
-  setIncludeActiveNote,
   selectedImages,
   onAddImage,
   setSelectedImages,
@@ -325,98 +316,45 @@ const ChatInput: React.FC<ChatInputProps> = ({
   const handleAddToContext = (category: string, data: any) => {
     switch (category) {
       case "activeNote":
-        // Add active note pill to lexical editor
-        if (lexicalEditorRef.current) {
-          // Check if active note pill already exists before creating
-          let hasActiveNotePill = false;
-          lexicalEditorRef.current.getEditorState().read(() => {
-            const root = $getRoot();
-            function traverse(node: any): void {
-              if ($isActiveNotePillNode(node)) {
-                hasActiveNotePill = true;
-                return;
-              }
-              if (typeof node.getChildren === "function") {
-                const children = node.getChildren();
-                for (const child of children) {
-                  if (hasActiveNotePill) return;
-                  traverse(child);
-                }
-              }
-            }
-            traverse(root);
-          });
-
-          if (!hasActiveNotePill) {
+        // Add current active note as a regular note pill (fixed reference, not dynamic)
+        if (data instanceof TFile) {
+          // Check if note already exists in context
+          const existingNote = contextNotes.find((n) => n.path === data.path);
+          if (!existingNote) {
+            setContextNotes((prev) => [...prev, data]);
+          }
+          // Create note pill in editor
+          if (lexicalEditorRef.current) {
             lexicalEditorRef.current.update(() => {
               const selection = $getSelection();
               if ($isRangeSelection(selection)) {
-                const activeNotePill = $createActiveNotePillNode();
-                selection.insertNodes([activeNotePill]);
+                const notePill = $createNotePillNode(data.basename, data.path);
+                selection.insertNodes([notePill]);
               }
             });
           }
         }
-        setIncludeActiveNote(true);
         break;
       case "notes":
         if (data instanceof TFile) {
-          const activeNote = app.workspace.getActiveFile();
-          if (activeNote && data.path === activeNote.path) {
-            // This is the active note - use active note pill instead
-            if (lexicalEditorRef.current) {
-              // Check if active note pill already exists before creating
-              let hasActiveNotePill = false;
-              lexicalEditorRef.current.getEditorState().read(() => {
-                const root = $getRoot();
-                function traverse(node: any): void {
-                  if ($isActiveNotePillNode(node)) {
-                    hasActiveNotePill = true;
-                    return;
-                  }
-                  if (typeof node.getChildren === "function") {
-                    const children = node.getChildren();
-                    for (const child of children) {
-                      if (hasActiveNotePill) return;
-                      traverse(child);
-                    }
-                  }
-                }
-                traverse(root);
-              });
-
-              if (!hasActiveNotePill) {
-                lexicalEditorRef.current.update(() => {
-                  const selection = $getSelection();
-                  if ($isRangeSelection(selection)) {
-                    const activeNotePill = $createActiveNotePillNode();
-                    selection.insertNodes([activeNotePill]);
-                  }
-                });
-              }
+          // Regular note - add to context and create pill in editor
+          setContextNotes((prev) => {
+            const existingNote = prev.find((n) => n.path === data.path);
+            if (existingNote) {
+              return prev; // Note already exists, no change needed
+            } else {
+              return [...prev, data];
             }
-            setIncludeActiveNote(true);
-            setContextNotes((prev) => prev.filter((n) => n.path !== data.path));
-          } else {
-            // Regular note - add to context and create pill in editor
-            setContextNotes((prev) => {
-              const existingNote = prev.find((n) => n.path === data.path);
-              if (existingNote) {
-                return prev; // Note already exists, no change needed
-              } else {
-                return [...prev, data];
+          });
+          // Create note pill in editor
+          if (lexicalEditorRef.current) {
+            lexicalEditorRef.current.update(() => {
+              const selection = $getSelection();
+              if ($isRangeSelection(selection)) {
+                const notePill = $createNotePillNode(data.basename, data.path);
+                selection.insertNodes([notePill]);
               }
             });
-            // Create note pill in editor
-            if (lexicalEditorRef.current) {
-              lexicalEditorRef.current.update(() => {
-                const selection = $getSelection();
-                if ($isRangeSelection(selection)) {
-                  const notePill = $createNotePillNode(data.basename, data.path);
-                  selection.insertNodes([notePill]);
-                }
-              });
-            }
           }
         }
         break;
@@ -464,24 +402,16 @@ const ChatInput: React.FC<ChatInputProps> = ({
   const handleRemoveFromContext = (category: string, data: any) => {
     switch (category) {
       case "activeNote":
-        // Remove active note pill from editor and turn off flag
-        setIncludeActiveNote(false);
-        if (lexicalEditorRef.current) {
-          lexicalEditorRef.current.update(() => {
-            $removeActiveNotePills();
-          });
+        // Remove active note from context (it's now a regular note, handled same as notes)
+        if (typeof data === "string") {
+          setContextNotes((prev) => prev.filter((note) => note.path !== data));
+          handleContextNoteRemoved(data);
         }
         break;
       case "notes":
         if (typeof data === "string") {
-          // data is the path
-          // Check if this is the active note
-          if (currentActiveNote?.path === data && includeActiveNote) {
-            setIncludeActiveNote(false);
-          } else {
-            // Remove from contextNotes
-            setContextNotes((prev) => prev.filter((note) => note.path !== data));
-          }
+          // data is the path - remove from contextNotes
+          setContextNotes((prev) => prev.filter((note) => note.path !== data));
           // Also remove corresponding pills from editor
           handleContextNoteRemoved(data);
         }
@@ -621,67 +551,6 @@ const ChatInput: React.FC<ChatInputProps> = ({
     lexicalEditorRef.current = editor;
   }, []);
 
-  // Auto-create active note pill when includeActiveNote is enabled
-  // This only runs when includeActiveNote changes from settings or default behavior,
-  // not when manually added via @ button (which handles creation itself)
-  useEffect(() => {
-    if (!includeActiveNote || !currentActiveNote || !lexicalEditorRef.current) {
-      return;
-    }
-
-    // Use a small delay to ensure any manual pill creation from handleAddToContext has completed
-    const timeoutId = setTimeout(() => {
-      if (!lexicalEditorRef.current) return;
-
-      // Check if active note pill already exists
-      let hasActiveNotePill = false;
-      lexicalEditorRef.current.getEditorState().read(() => {
-        const root = $getRoot();
-        function traverse(node: any): void {
-          if ($isActiveNotePillNode(node)) {
-            hasActiveNotePill = true;
-            return;
-          }
-          if (typeof node.getChildren === "function") {
-            const children = node.getChildren();
-            for (const child of children) {
-              if (hasActiveNotePill) return;
-              traverse(child);
-            }
-          }
-        }
-        traverse(root);
-      });
-
-      // If no active note pill exists, create one at the cursor position or end
-      if (!hasActiveNotePill) {
-        lexicalEditorRef.current.update(() => {
-          const selection = $getSelection();
-          const activeNotePill = $createActiveNotePillNode();
-
-          if ($isRangeSelection(selection) && !selection.isCollapsed()) {
-            // If there's a selection, insert at the start of selection
-            selection.insertNodes([activeNotePill]);
-          } else if ($isRangeSelection(selection)) {
-            // If cursor is positioned, insert at cursor
-            selection.insertNodes([activeNotePill]);
-          } else {
-            // Otherwise, append to the end
-            const root = $getRoot();
-            const lastChild = root.getLastChild();
-            if (lastChild) {
-              lastChild.insertAfter(activeNotePill);
-            } else {
-              root.append(activeNotePill);
-            }
-          }
-        });
-      }
-    }, 50); // Small delay to let handleAddToContext complete
-
-    return () => clearTimeout(timeoutId);
-  }, [includeActiveNote, currentActiveNote]);
-
   // Handle Escape key for edit mode
   useEffect(() => {
     if (!editMode || !onEditCancel) return;
@@ -713,15 +582,6 @@ const ChatInput: React.FC<ChatInputProps> = ({
       });
     }
   }, [isAdvancedMode]);
-
-  // Active note pill sync callbacks
-  const handleActiveNoteAdded = useCallback(() => {
-    setIncludeActiveNote(true);
-  }, [setIncludeActiveNote]);
-
-  const handleActiveNoteRemoved = useCallback(() => {
-    setIncludeActiveNote(false);
-  }, [setIncludeActiveNote]);
 
   // Handle tag selection from typeahead - auto-enable vault search
   const handleTagSelected = useCallback(() => {
@@ -828,8 +688,6 @@ const ChatInput: React.FC<ChatInputProps> = ({
           onSubmit={onSendMessage}
           onNotesChange={setNotesFromPills}
           onNotesRemoved={handleNotePillsRemoved}
-          onActiveNoteAdded={handleActiveNoteAdded}
-          onActiveNoteRemoved={handleActiveNoteRemoved}
           onURLsChange={isAdvancedMode ? setUrlsFromPills : undefined}
           onURLsRemoved={isAdvancedMode ? handleURLPillsRemoved : undefined}
           onToolsChange={isAdvancedMode ? setToolsFromPills : undefined}
@@ -897,9 +755,8 @@ const ChatInput: React.FC<ChatInputProps> = ({
                 onComposerToggleOff={handleComposerToggleOff}
               />
               <ContextControl
-                contextNotes={contextNotes}
-                includeActiveNote={includeActiveNote}
                 activeNote={currentActiveNote}
+                contextNotes={contextNotes}
                 contextUrls={contextUrls}
                 contextFolders={contextFolders}
                 selectedTextContexts={selectedTextContexts}

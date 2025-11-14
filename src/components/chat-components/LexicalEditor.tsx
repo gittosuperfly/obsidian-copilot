@@ -15,7 +15,6 @@ import { NotePillNode } from "./pills/NotePillNode";
 import { URLPillNode } from "./pills/URLPillNode";
 import { ToolPillNode } from "./pills/ToolPillNode";
 import { FolderPillNode } from "./pills/FolderPillNode";
-import { ActiveNotePillNode } from "./pills/ActiveNotePillNode";
 import { SelectedTextPillNode } from "./pills/SelectedTextPillNode";
 import { PillDeletionPlugin } from "./plugins/PillDeletionPlugin";
 import { KeyboardPlugin } from "./plugins/KeyboardPlugin";
@@ -25,7 +24,6 @@ import { NotePillSyncPlugin } from "./plugins/NotePillSyncPlugin";
 import { URLPillSyncPlugin } from "./plugins/URLPillSyncPlugin";
 import { ToolPillSyncPlugin } from "./plugins/ToolPillSyncPlugin";
 import { FolderPillSyncPlugin } from "./plugins/FolderPillSyncPlugin";
-import { ActiveNotePillSyncPlugin } from "./plugins/ActiveNotePillSyncPlugin";
 import { PastePlugin } from "./plugins/PastePlugin";
 import { TextInsertionPlugin } from "./plugins/TextInsertionPlugin";
 import { useChatInput } from "@/context/ChatInputContext";
@@ -49,8 +47,6 @@ interface LexicalEditorProps {
   onToolsRemoved?: (removedTools: string[]) => void;
   onFoldersChange?: (folders: string[]) => void;
   onFoldersRemoved?: (removedFolders: string[]) => void;
-  onActiveNoteAdded?: () => void;
-  onActiveNoteRemoved?: () => void;
   onEditorReady?: (editor: any) => void;
   onImagePaste?: (files: File[]) => void;
   onTagSelected?: () => void;
@@ -74,8 +70,6 @@ const LexicalEditor: React.FC<LexicalEditorProps> = ({
   onToolsRemoved,
   onFoldersChange,
   onFoldersRemoved,
-  onActiveNoteAdded,
-  onActiveNoteRemoved,
   onEditorReady,
   onImagePaste,
   onTagSelected,
@@ -115,7 +109,6 @@ const LexicalEditor: React.FC<LexicalEditorProps> = ({
       },
       nodes: [
         NotePillNode,
-        ActiveNotePillNode,
         ToolPillNode,
         FolderPillNode,
         SelectedTextPillNode,
@@ -180,14 +173,10 @@ const LexicalEditor: React.FC<LexicalEditorProps> = ({
             onFoldersChange={onFoldersChange}
             onFoldersRemoved={onFoldersRemoved}
           />
-          <ActiveNotePillSyncPlugin
-            onActiveNoteAdded={onActiveNoteAdded}
-            onActiveNoteRemoved={onActiveNoteRemoved}
-          />
           <PillDeletionPlugin />
           <PastePlugin enableURLPills={!!onURLsChange} onImagePaste={onImagePaste} />
           <SlashCommandPlugin />
-          <NoteCommandPlugin currentActiveFile={currentActiveFile} />
+          <NoteCommandPlugin />
           {currentChain && currentChain !== ChainType.LLM_CHAIN && (
             <TagCommandPlugin onTagSelected={onTagSelected} />
           )}

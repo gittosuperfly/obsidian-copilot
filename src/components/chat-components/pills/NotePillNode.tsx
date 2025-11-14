@@ -11,6 +11,9 @@ import {
 import { BasePillNode, SerializedBasePillNode } from "./BasePillNode";
 import { TruncatedPillText } from "./TruncatedPillText";
 import { PillBadge } from "./PillBadge";
+import { usePillMaxWidth } from "./pillUtils";
+import { openFileInWorkspace } from "@/utils";
+import { TFile } from "obsidian";
 
 export interface SerializedNotePillNode extends SerializedBasePillNode {
   noteTitle: string;
@@ -136,18 +139,26 @@ function NotePillComponent({ node }: NotePillComponentProps): JSX.Element {
   const lowerPath = notePath.toLowerCase();
   const isPdf = lowerPath.endsWith(".pdf");
   const isCanvas = lowerPath.endsWith(".canvas");
+  const maxWidth = usePillMaxWidth();
 
   const tooltipContent = <div className="tw-text-left">{notePath}</div>;
 
+  const handleClick = async () => {
+    const file = app.vault.getAbstractFileByPath(notePath);
+    if (file instanceof TFile) {
+      await openFileInWorkspace(file);
+    }
+  };
+
   return (
-    <PillBadge>
+    <PillBadge onClick={handleClick}>
       <div className="tw-flex tw-items-center tw-gap-1.5">
         <TruncatedPillText
           content={noteTitle}
           openBracket=""
           closeBracket=""
           tooltipContent={tooltipContent}
-          maxWidth="tw-max-w-32"
+          maxWidth={maxWidth}
         />
         {isPdf && <span className="tw-text-[10px] tw-text-faint">pdf</span>}
         {isCanvas && <span className="tw-text-[10px] tw-text-faint">canvas</span>}

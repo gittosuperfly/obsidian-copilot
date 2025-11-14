@@ -458,7 +458,6 @@ export const DEFAULT_SETTINGS: CopilotSettings = {
   defaultConversationTag: "copilot-conversation",
   autosaveChat: true,
   generateAIChatTitleOnSave: true,
-  includeActiveNoteAsContext: true,
   defaultOpenArea: DEFAULT_OPEN_AREA.VIEW,
   defaultSendShortcut: SEND_SHORTCUT.ENTER,
   customPromptsFolder: DEFAULT_CUSTOM_PROMPTS_FOLDER,
@@ -513,6 +512,7 @@ export const DEFAULT_SETTINGS: CopilotSettings = {
   quickCommandIncludeNoteContext: true,
   autoIncludeTextSelection: false,
   language: DEFAULT_LANGUAGE,
+  pillTextMaxWidth: 32, // Default: tw-max-w-32
 };
 
 export const EVENT_NAMES = {

@@ -12,7 +12,6 @@ import { AtMentionTypeahead } from "./AtMentionTypeahead";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 interface ChatContextMenuProps {
-  includeActiveNote: boolean;
   currentActiveFile: TFile | null;
   contextNotes: TFile[];
   contextUrls: string[];
@@ -25,7 +24,6 @@ interface ChatContextMenuProps {
 }
 
 export const ChatContextMenu: React.FC<ChatContextMenuProps> = ({
-  includeActiveNote,
   currentActiveFile,
   contextNotes,
   contextUrls,

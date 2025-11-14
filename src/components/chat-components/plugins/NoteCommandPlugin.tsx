@@ -13,13 +13,7 @@ import {
 } from "@/components/chat-components/utils/lexicalTextUtils";
 import { NotePreviewCache } from "@/components/chat-components/utils/notePreviewUtils";
 
-interface NoteCommandPluginProps {
-  currentActiveFile?: TFile | null;
-}
-
-export function NoteCommandPlugin({
-  currentActiveFile = null,
-}: NoteCommandPluginProps): JSX.Element {
+export function NoteCommandPlugin(): JSX.Element {
   const [editor] = useLexicalComposerContext();
   const [currentQuery, setCurrentQuery] = useState("");
 
@@ -52,7 +46,7 @@ export function NoteCommandPlugin({
   );
 
   // Use unified note search hook with standard configuration
-  const searchResults = useNoteSearch(currentQuery, {}, currentActiveFile);
+  const searchResults = useNoteSearch(currentQuery, {});
 
   // Add preview content from cache to the results
   const filteredNotes = searchResults.map((note) => ({
@@ -63,24 +57,16 @@ export function NoteCommandPlugin({
   // Shared selection handler
   const handleSelect = useCallback(
     (option: NoteSearchOption) => {
-      // Check if this is the "Active Note" option by its category
-      if (option.category === "activeNote") {
-        // Create ActiveNotePillNode instead of regular NotePillNode
-        editor.update(() => {
-          $replaceTriggeredTextWithPill("[[", { type: "active-note" });
-        });
-      } else {
-        // Regular note pill
-        const pillData: PillData = {
-          type: "notes",
-          title: option.title,
-          data: option.file,
-        };
+      // Regular note pill
+      const pillData: PillData = {
+        type: "notes",
+        title: option.title,
+        data: option.file,
+      };
 
-        editor.update(() => {
-          $replaceTriggeredTextWithPill("[[", pillData);
-        });
-      }
+      editor.update(() => {
+        $replaceTriggeredTextWithPill("[[", pillData);
+      });
     },
     [editor]
   );

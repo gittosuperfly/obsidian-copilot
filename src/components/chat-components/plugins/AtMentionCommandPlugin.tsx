@@ -3,7 +3,7 @@ import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext
 import { TFile, App } from "obsidian";
 import { TypeaheadMenuPortal } from "../TypeaheadMenuPortal";
 import { useTypeaheadPlugin } from "../hooks/useTypeaheadPlugin";
-import { $replaceTriggeredTextWithPill, PillData } from "../utils/lexicalTextUtils";
+import { $replaceTriggeredTextWithPill, PillData, PillType } from "../utils/lexicalTextUtils";
 import {
   useAtMentionCategories,
   AtMentionCategory,
@@ -103,16 +103,22 @@ export function AtMentionCommandPlugin({
 
       // Item was selected - create appropriate pill using shared utility
       if (isAtMentionOption(option)) {
-        // Check if this is the "Active Note" option by its category
-        if (option.category === "activeNote") {
-          // Create ActiveNotePillNode instead of regular NotePillNode
+        // For activeNote category, create a regular note pill (fixed reference, not dynamic)
+        if (option.category === "activeNote" && option.data instanceof TFile) {
+          const pillData: PillData = {
+            type: "notes",
+            title: option.data.basename, // Use file basename, not "当前笔记" text
+            data: option.data,
+          };
           editor.update(() => {
-            $replaceTriggeredTextWithPill("@", { type: "active-note" });
+            $replaceTriggeredTextWithPill("@", pillData);
           });
         } else {
-          // Regular pill
+          // Regular pill - ensure category is a valid PillType (exclude activeNote)
+          const pillType: PillType =
+            option.category === "activeNote" ? "notes" : (option.category as PillType);
           const pillData: PillData = {
-            type: option.category,
+            type: pillType,
             title: option.title,
             data: option.data,
           };

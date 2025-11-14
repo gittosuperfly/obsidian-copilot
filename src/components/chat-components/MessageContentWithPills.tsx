@@ -1,63 +1,18 @@
 import React from "react";
-import { TFile, App } from "obsidian";
+import { TFile, App, TFolder } from "obsidian";
 import { parseTextForPills } from "./utils/lexicalTextUtils";
 import { cn } from "@/lib/utils";
 import { PillBadge } from "./pills/PillBadge";
 import { TruncatedPillText } from "./pills/TruncatedPillText";
-import { useActiveFile, ActiveFileProvider } from "./context/ActiveFileContext";
+import { ActiveFileProvider } from "./context/ActiveFileContext";
+import { usePillMaxWidth } from "./pills/pillUtils";
+import { openFileInWorkspace } from "@/utils";
 
 interface MessageContentWithPillsProps {
   message: string;
   app: App;
   className?: string;
   currentActiveFile?: TFile | null;
-}
-
-/**
- * Simple pill component for displaying active note
- */
-function ActiveNotePillDisplay() {
-  const currentActiveFile = useActiveFile();
-
-  if (!currentActiveFile) {
-    return (
-      <PillBadge>
-        <div className="tw-flex tw-items-center tw-gap-1.5">
-          <TruncatedPillText
-            content="activeNote"
-            openBracket=""
-            closeBracket=""
-            tooltipContent={
-              <div className="tw-text-left">
-                Will use the active note at the time the message is sent
-              </div>
-            }
-            maxWidth="tw-max-w-32"
-          />
-        </div>
-      </PillBadge>
-    );
-  }
-
-  const noteTitle = currentActiveFile.basename;
-  const notePath = currentActiveFile.path;
-  const isPdf = notePath.toLowerCase().endsWith(".pdf");
-
-  return (
-    <PillBadge>
-      <div className="tw-flex tw-items-center tw-gap-1.5">
-        <TruncatedPillText
-          content={noteTitle}
-          openBracket=""
-          closeBracket=""
-          tooltipContent={<div className="tw-text-left">{notePath}</div>}
-          maxWidth="tw-max-w-32"
-        />
-        <span className="tw-text-[10px] tw-text-faint">Current</span>
-        {isPdf && <span className="tw-text-[10px] tw-text-faint">pdf</span>}
-      </div>
-    </PillBadge>
-  );
 }
 
 /**
@@ -70,6 +25,8 @@ export function MessageContentWithPills({
   className,
   currentActiveFile,
 }: MessageContentWithPillsProps): JSX.Element {
+  const maxWidth = usePillMaxWidth();
+
   // Parse message text and convert references to pills
   const segments = React.useMemo(() => {
     try {
@@ -97,8 +54,6 @@ export function MessageContentWithPills({
         {segments.map((segment, index) => {
           if (segment.type === "text") {
             return <span key={index}>{segment.content}</span>;
-          } else if (segment.type === "active-note-pill") {
-            return <ActiveNotePillDisplay key={index} />;
           } else if (segment.type === "note-pill" && "file" in segment && segment.file) {
             const noteTitle = segment.content;
             const notePath = segment.file.path;
@@ -106,15 +61,21 @@ export function MessageContentWithPills({
             const isPdf = lowerPath.endsWith(".pdf");
             const isCanvas = lowerPath.endsWith(".canvas");
 
+            const handleClick = async () => {
+              if (segment.file) {
+                await openFileInWorkspace(segment.file);
+              }
+            };
+
             return (
-              <PillBadge key={index}>
+              <PillBadge key={index} onClick={handleClick}>
                 <div className="tw-flex tw-items-center tw-gap-1.5">
                   <TruncatedPillText
                     content={noteTitle}
                     openBracket=""
                     closeBracket=""
                     tooltipContent={<div className="tw-text-left">{notePath}</div>}
-                    maxWidth="tw-max-w-32"
+                    maxWidth={maxWidth}
                   />
                   {isPdf && <span className="tw-text-[10px] tw-text-faint">pdf</span>}
                   {isCanvas && <span className="tw-text-[10px] tw-text-faint">canvas</span>}
@@ -130,7 +91,7 @@ export function MessageContentWithPills({
                     openBracket=""
                     closeBracket=""
                     tooltipContent={<div className="tw-text-left">{segment.url}</div>}
-                    maxWidth="tw-max-w-32"
+                    maxWidth={maxWidth}
                   />
                 </div>
               </PillBadge>
@@ -144,21 +105,39 @@ export function MessageContentWithPills({
                     openBracket="@"
                     closeBracket=""
                     tooltipContent={<div className="tw-text-left">{segment.toolName}</div>}
-                    maxWidth="tw-max-w-32"
+                    maxWidth={maxWidth}
                   />
                 </div>
               </PillBadge>
             );
           } else if (segment.type === "folder-pill" && "folder" in segment && segment.folder) {
+            const folderPath = segment.folder.path;
+            const handleClick = () => {
+              const folder = app.vault.getAbstractFileByPath(folderPath);
+              if (folder instanceof TFolder) {
+                // Reveal folder in file explorer
+                const fileExplorer = (app as any).internalPlugins?.plugins?.fileexplorer;
+                if (fileExplorer?.instance?.revealInFolder) {
+                  fileExplorer.instance.revealInFolder(folder);
+                } else {
+                  // Fallback: try to open the first file in the folder
+                  const firstFile = folder.children.find((child) => child instanceof TFile);
+                  if (firstFile instanceof TFile) {
+                    openFileInWorkspace(firstFile);
+                  }
+                }
+              }
+            };
+
             return (
-              <PillBadge key={index}>
+              <PillBadge key={index} onClick={handleClick}>
                 <div className="tw-flex tw-items-center tw-gap-1.5">
                   <TruncatedPillText
                     content={segment.folder.name}
                     openBracket=""
                     closeBracket=""
                     tooltipContent={<div className="tw-text-left">{segment.folder.path}</div>}
-                    maxWidth="tw-max-w-32"
+                    maxWidth={maxWidth}
                   />
                 </div>
               </PillBadge>

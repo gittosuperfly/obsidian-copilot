@@ -12,6 +12,8 @@ import { BasePillNode, SerializedBasePillNode } from "./BasePillNode";
 import { TruncatedPillText } from "./TruncatedPillText";
 import { PillBadge } from "./PillBadge";
 import { useActiveFile } from "../context/ActiveFileContext";
+import { usePillMaxWidth } from "./pillUtils";
+import { openFileInWorkspace } from "@/utils";
 
 // Active note pill doesn't store any file-specific data
 // It always represents the current active file
@@ -102,6 +104,7 @@ function convertActiveNotePillElement(_domNode: HTMLElement): DOMConversionOutpu
  */
 function ActiveNotePillComponent(): JSX.Element {
   const currentActiveFile = useActiveFile();
+  const maxWidth = usePillMaxWidth();
 
   // If no active file, show {activeNote} to match what gets sent to LLM
   if (!currentActiveFile) {
@@ -117,7 +120,7 @@ function ActiveNotePillComponent(): JSX.Element {
                 Will use the active note at the time the message is sent
               </div>
             }
-            maxWidth="tw-max-w-32"
+            maxWidth={maxWidth}
           />
         </div>
       </PillBadge>
@@ -129,17 +132,23 @@ function ActiveNotePillComponent(): JSX.Element {
   const notePath = currentActiveFile.path;
   const isPdf = notePath.toLowerCase().endsWith(".pdf");
 
+  const handleClick = async () => {
+    await openFileInWorkspace(currentActiveFile);
+  };
+
   return (
-    <PillBadge>
+    <PillBadge onClick={handleClick}>
       <div className="tw-flex tw-items-center tw-gap-1.5">
         <TruncatedPillText
           content={noteTitle}
           openBracket=""
           closeBracket=""
           tooltipContent={<div className="tw-text-left">{notePath}</div>}
-          maxWidth="tw-max-w-32"
+          maxWidth={maxWidth}
         />
-        <span className="tw-text-[10px] tw-text-faint">Current</span>
+        <span className="tw-flex tw-size-3.5 tw-items-center tw-justify-center tw-rounded-sm tw-border tw-border-solid tw-text-[9px] tw-font-medium tw-text-faint tw-border-border/60">
+          C
+        </span>
         {isPdf && <span className="tw-text-[10px] tw-text-faint">pdf</span>}
       </div>
     </PillBadge>

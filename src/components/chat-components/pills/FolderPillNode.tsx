@@ -10,6 +10,9 @@ import {
 import { BasePillNode, SerializedBasePillNode } from "./BasePillNode";
 import { TruncatedPillText } from "./TruncatedPillText";
 import { PillBadge } from "./PillBadge";
+import { usePillMaxWidth } from "./pillUtils";
+import { TFolder, TFile } from "obsidian";
+import { openFileInWorkspace } from "@/utils";
 
 export interface SerializedFolderPillNode extends SerializedBasePillNode {
   type: "folder-pill";
@@ -69,19 +72,7 @@ export class FolderPillNode extends BasePillNode {
    * Override to display folder name wrapped in curly braces
    */
   decorate(): JSX.Element {
-    const tooltipContent = <div className="tw-text-left">{this.getFolderPath()}</div>;
-
-    return (
-      <PillBadge>
-        <TruncatedPillText
-          content={this.getFolderPath()}
-          openBracket=""
-          closeBracket=""
-          tooltipContent={tooltipContent}
-          maxWidth="tw-max-w-32"
-        />
-      </PillBadge>
-    );
+    return <FolderPillComponent node={this} />;
   }
 
   /**
@@ -105,6 +96,44 @@ export class FolderPillNode extends BasePillNode {
   getFolderPath(): string {
     return this.getValue();
   }
+}
+
+interface FolderPillComponentProps {
+  node: FolderPillNode;
+}
+
+function FolderPillComponent({ node }: FolderPillComponentProps): JSX.Element {
+  const maxWidth = usePillMaxWidth();
+  const tooltipContent = <div className="tw-text-left">{node.getFolderPath()}</div>;
+
+  const handleClick = () => {
+    const folder = app.vault.getAbstractFileByPath(node.getFolderPath());
+    if (folder instanceof TFolder) {
+      // Reveal folder in file explorer
+      const fileExplorer = (app as any).internalPlugins?.plugins?.fileexplorer;
+      if (fileExplorer?.instance?.revealInFolder) {
+        fileExplorer.instance.revealInFolder(folder);
+      } else {
+        // Fallback: try to open the first file in the folder
+        const firstFile = folder.children.find((child) => child instanceof TFile);
+        if (firstFile instanceof TFile) {
+          openFileInWorkspace(firstFile);
+        }
+      }
+    }
+  };
+
+  return (
+    <PillBadge onClick={handleClick}>
+      <TruncatedPillText
+        content={node.getFolderPath()}
+        openBracket=""
+        closeBracket=""
+        tooltipContent={tooltipContent}
+        maxWidth={maxWidth}
+      />
+    </PillBadge>
+  );
 }
 
 function convertFolderPillElement(domNode: HTMLElement): DOMConversionOutput | null {

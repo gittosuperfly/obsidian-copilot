@@ -30,3 +30,6 @@ data.json
 
 # Development session tracking
 TODO.md
+
+# Obsidian plugin path configuration (local to each developer)
+.obsidian-plugin-path.json

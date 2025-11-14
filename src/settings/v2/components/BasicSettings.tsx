@@ -210,16 +210,6 @@ export const BasicSettings: React.FC = () => {
 
           <SettingItem
             type="switch"
-            title={t("settings.general.includeActiveNote.title")}
-            description={t("settings.general.includeActiveNote.description")}
-            checked={settings.includeActiveNoteAsContext}
-            onCheckedChange={(checked) => {
-              updateSetting("includeActiveNoteAsContext", checked);
-            }}
-          />
-
-          <SettingItem
-            type="switch"
             title={t("settings.general.autoSelection.title")}
             description={t("settings.general.autoSelection.description")}
             checked={settings.autoIncludeTextSelection}
@@ -252,6 +242,19 @@ export const BasicSettings: React.FC = () => {
             description={t("settings.general.relevantNotes.description")}
             checked={settings.showRelevantNotes}
             onCheckedChange={(checked) => updateSetting("showRelevantNotes", checked)}
+          />
+
+          <SettingItem
+            type="number"
+            title={t("settings.general.pillTextMaxWidth.title")}
+            description={t("settings.general.pillTextMaxWidth.description")}
+            value={settings.pillTextMaxWidth ?? 32}
+            onChange={(value) => {
+              const numValue = Number(value);
+              if (!isNaN(numValue) && numValue > 0) {
+                updateSetting("pillTextMaxWidth", numValue);
+              }
+            }}
           />
         </div>
       </section>

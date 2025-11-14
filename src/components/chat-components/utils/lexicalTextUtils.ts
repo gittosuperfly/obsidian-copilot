@@ -11,7 +11,6 @@ import {
 } from "lexical";
 import { TFile, TFolder, App } from "obsidian";
 import { $createNotePillNode } from "../pills/NotePillNode";
-import { $createActiveNotePillNode } from "../pills/ActiveNotePillNode";
 import { $createURLPillNode } from "../pills/URLPillNode";
 import { $createToolPillNode } from "../pills/ToolPillNode";
 import { $createFolderPillNode } from "../pills/FolderPillNode";
@@ -20,16 +19,10 @@ import { AVAILABLE_TOOLS } from "../constants/tools";
 
 declare const app: App;
 
-export type PillType = "notes" | "tools" | "folders" | "active-note";
+export type PillType = "notes" | "tools" | "folders";
 
 // Type representing different kinds of parsed content segments
-export type ParsedContentType =
-  | "text"
-  | "note-pill"
-  | "active-note-pill"
-  | "url-pill"
-  | "tool-pill"
-  | "folder-pill";
+export type ParsedContentType = "text" | "note-pill" | "url-pill" | "tool-pill" | "folder-pill";
 
 // Type representing different pattern matching categories
 export type PatternType = "notes" | "urls" | "tools" | "customTemplates";
@@ -50,9 +43,6 @@ export function $createPillNode(pillData: PillData) {
   const { type, title, data } = pillData;
 
   switch (type) {
-    case "active-note":
-      // Active note pill doesn't need title or data - it automatically shows current active file
-      return $createActiveNotePillNode();
     case "notes":
       if (data instanceof TFile && title) {
         return $createNotePillNode(title, data.path);
@@ -497,31 +487,23 @@ export function parseTextForPills(
         });
       }
     } else if (matchedPattern.type === "customTemplates") {
-      // This is a custom template: folder reference {folderName} or special {activeNote} syntax
+      // This is a custom template: folder reference {folderName}
       const templateContent = match[matchedPattern.startIndex + 1].trim();
 
-      // Special case: {activeNote} should create an active-note-pill
-      if (templateContent === "activeNote") {
+      const resolvedFolder = resolveFolderReference(templateContent);
+
+      if (resolvedFolder) {
         segments.push({
-          type: "active-note-pill",
-          content: "activeNote",
+          type: "folder-pill",
+          content: resolvedFolder.path,
+          folder: resolvedFolder,
         });
       } else {
-        const resolvedFolder = resolveFolderReference(templateContent);
-
-        if (resolvedFolder) {
-          segments.push({
-            type: "folder-pill",
-            content: resolvedFolder.path,
-            folder: resolvedFolder,
-          });
-        } else {
-          // Invalid folder reference - keep as plain text
-          segments.push({
-            type: "text",
-            content: match[0],
-          });
-        }
+        // Invalid folder reference - keep as plain text
+        segments.push({
+          type: "text",
+          content: match[0],
+        });
       }
     }
 
@@ -553,8 +535,6 @@ export function createNodesFromSegments(segments: ParsedContent[]): LexicalNode[
   for (const segment of segments) {
     if (segment.type === "text" && segment.content) {
       nodes.push($createTextNode(segment.content));
-    } else if (segment.type === "active-note-pill") {
-      nodes.push($createActiveNotePillNode());
     } else if (segment.type === "note-pill" && segment.file) {
       nodes.push($createNotePillNode(segment.content, segment.file.path));
     } else if (segment.type === "url-pill" && segment.url) {

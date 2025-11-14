@@ -82,7 +82,7 @@ export function SlashCommandPlugin(): JSX.Element {
             $replaceTextRangeWithPills(slashIndex, anchor.offset, insertedText, {
               enableURLPills: true, // Enable URL pill conversion for templates
               enableToolPills: true, // Enable tool pill conversion (@vault, @composer, etc.)
-              enableCustomTemplatePills: true, // Enable custom template pill conversion ({activeNote}, {folderName})
+              enableCustomTemplatePills: true, // Enable custom template pill conversion ({folderName})
             });
           }
         }

@@ -5,9 +5,8 @@ import { TFile } from "obsidian";
 import { ChatContextMenu } from "./ChatContextMenu";
 
 interface ChatControlsProps {
-  contextNotes: TFile[];
-  includeActiveNote: boolean;
   activeNote: TFile | null;
+  contextNotes: TFile[];
   contextUrls: string[];
   contextFolders: string[];
   selectedTextContexts?: SelectedTextContext[];
@@ -20,9 +19,8 @@ interface ChatControlsProps {
 }
 
 export const ContextControl: React.FC<ChatControlsProps> = ({
-  contextNotes,
-  includeActiveNote,
   activeNote,
+  contextNotes,
   contextUrls,
   contextFolders,
   selectedTextContexts,
@@ -45,7 +43,6 @@ export const ContextControl: React.FC<ChatControlsProps> = ({
 
   return (
     <ChatContextMenu
-      includeActiveNote={includeActiveNote}
       currentActiveFile={activeNote}
       contextNotes={contextNotes}
       onRemoveContext={handleRemoveContext}

@@ -53,6 +53,9 @@ const en = {
   "settings.general.suggestedPrompts.description": "Show suggested prompts in the chat view.",
   "settings.general.relevantNotes.title": "Relevant Notes",
   "settings.general.relevantNotes.description": "Show relevant notes in the chat view.",
+  "settings.general.pillTextMaxWidth.title": "Pill Text Max Width",
+  "settings.general.pillTextMaxWidth.description":
+    "Maximum width for file name display in pills (Tailwind units, default: 32). Higher values show longer file names.",
   "settings.saving.heading": "Saving Conversations",
   "settings.saving.autosave.title": "Autosave Chat",
   "settings.saving.autosave.description":
@@ -785,6 +788,9 @@ const zh: Record<TranslationKey, string> = {
   "settings.general.suggestedPrompts.description": "在聊天界面显示提示建议。",
   "settings.general.relevantNotes.title": "相关笔记",
   "settings.general.relevantNotes.description": "在聊天界面显示相关笔记。",
+  "settings.general.pillTextMaxWidth.title": "Pill 文本最大宽度",
+  "settings.general.pillTextMaxWidth.description":
+    "Pill 中文件名显示的最大宽度（Tailwind 单位，默认：32）。数值越大，显示的文件名越长。",
   "settings.saving.heading": "会话保存",
   "settings.saving.autosave.title": "自动保存聊天",
   "settings.saving.autosave.description": "每次用户消息和 AI 回复后自动保存聊天记录。",

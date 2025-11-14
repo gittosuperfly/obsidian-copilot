@@ -10,6 +10,8 @@ import {
 } from "lexical";
 import { BasePillNode, SerializedBasePillNode } from "./BasePillNode";
 import { PillBadge } from "./PillBadge";
+import { usePillMaxWidth } from "./pillUtils";
+import { cn } from "@/lib/utils";
 
 export interface SerializedURLPillNode extends SerializedBasePillNode {
   url: string;
@@ -128,17 +130,26 @@ export class URLPillNode extends BasePillNode {
   }
 
   decorate(): JSX.Element {
-    const displayText = this.__title || this.__url;
-
-    return (
-      <PillBadge className="tw-whitespace-nowrap">
-        <div className="tw-flex tw-items-center tw-gap-1.5">
-          <span className="tw-max-w-32 tw-truncate tw-text-xs">{displayText}</span>
-          {this.__isActive && <span className="tw-text-[10px] tw-text-faint">Active</span>}
-        </div>
-      </PillBadge>
-    );
+    return <URLPillComponent node={this} />;
   }
+}
+
+interface URLPillComponentProps {
+  node: URLPillNode;
+}
+
+function URLPillComponent({ node }: URLPillComponentProps): JSX.Element {
+  const maxWidth = usePillMaxWidth();
+  const displayText = node.__title || node.__url;
+
+  return (
+    <PillBadge className="tw-whitespace-nowrap">
+      <div className="tw-flex tw-items-center tw-gap-1.5">
+        <span className={cn("tw-truncate tw-text-xs", maxWidth)}>{displayText}</span>
+        {node.__isActive && <span className="tw-text-[10px] tw-text-faint">Active</span>}
+      </div>
+    </PillBadge>
+  );
 }
 
 function convertURLPillElement(domNode: HTMLElement): DOMConversionOutput | null {

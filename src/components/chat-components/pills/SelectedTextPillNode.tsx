@@ -11,6 +11,9 @@ import {
 import { BasePillNode, SerializedBasePillNode } from "./BasePillNode";
 import { TruncatedPillText } from "./TruncatedPillText";
 import { PillBadge } from "./PillBadge";
+import { usePillMaxWidth } from "./pillUtils";
+import { openFileInWorkspace } from "@/utils";
+import { TFile } from "obsidian";
 
 export interface SerializedSelectedTextPillNode extends SerializedBasePillNode {
   selectedTextId: string;
@@ -149,32 +152,49 @@ export class SelectedTextPillNode extends BasePillNode {
   }
 
   decorate(): JSX.Element {
-    const lineRange =
-      this.__startLine === this.__endLine
-        ? `L${this.__startLine}`
-        : `L${this.__startLine}-${this.__endLine}`;
-    const tooltipContent = (
-      <div className="tw-text-left">
-        <div>{this.__notePath}</div>
-        <div className="tw-text-xs tw-text-faint">{lineRange}</div>
-      </div>
-    );
-
-    return (
-      <PillBadge>
-        <div className="tw-flex tw-items-center tw-gap-1.5">
-          <TruncatedPillText
-            content={this.__noteTitle}
-            openBracket=""
-            closeBracket=""
-            tooltipContent={tooltipContent}
-            maxWidth="tw-max-w-32"
-          />
-          <span className="tw-text-[10px] tw-text-faint">{lineRange}</span>
-        </div>
-      </PillBadge>
-    );
+    return <SelectedTextPillComponent node={this} />;
   }
+}
+
+interface SelectedTextPillComponentProps {
+  node: SelectedTextPillNode;
+}
+
+function SelectedTextPillComponent({ node }: SelectedTextPillComponentProps): JSX.Element {
+  const maxWidth = usePillMaxWidth();
+  const noteTitle = node.getNoteTitle();
+  const notePath = node.getNotePath();
+  const startLine = node.getStartLine();
+  const endLine = node.getEndLine();
+  const lineRange = startLine === endLine ? `L${startLine}` : `L${startLine}-${endLine}`;
+  const tooltipContent = (
+    <div className="tw-text-left">
+      <div>{notePath}</div>
+      <div className="tw-text-xs tw-text-faint">{lineRange}</div>
+    </div>
+  );
+
+  const handleClick = async () => {
+    const file = app.vault.getAbstractFileByPath(notePath);
+    if (file instanceof TFile) {
+      await openFileInWorkspace(file);
+    }
+  };
+
+  return (
+    <PillBadge onClick={handleClick}>
+      <div className="tw-flex tw-items-center tw-gap-1.5">
+        <TruncatedPillText
+          content={noteTitle}
+          openBracket=""
+          closeBracket=""
+          tooltipContent={tooltipContent}
+          maxWidth={maxWidth}
+        />
+        <span className="tw-text-[10px] tw-text-faint">{lineRange}</span>
+      </div>
+    </PillBadge>
+  );
 }
 
 function convertSelectedTextPillElement(domNode: HTMLElement): DOMConversionOutput | null {

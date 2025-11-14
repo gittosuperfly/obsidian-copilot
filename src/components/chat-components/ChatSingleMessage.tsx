@@ -573,7 +573,7 @@ const ChatSingleMessage: React.FC<ChatSingleMessageProps> = ({
                     <MessageContentWithPills
                       message={message.message}
                       app={app}
-                      currentActiveFile={app.workspace.getActiveFile()}
+                      currentActiveFile={null}
                     />
                   ) : (
                     <div
@@ -602,11 +602,7 @@ const ChatSingleMessage: React.FC<ChatSingleMessageProps> = ({
 
     // Fallback for messages without content array
     return message.sender === USER_SENDER ? (
-      <MessageContentWithPills
-        message={message.message}
-        app={app}
-        currentActiveFile={app.workspace.getActiveFile()}
-      />
+      <MessageContentWithPills message={message.message} app={app} currentActiveFile={null} />
     ) : (
       <div ref={contentRef} className={message.isErrorMessage ? "tw-text-error" : ""}></div>
     );

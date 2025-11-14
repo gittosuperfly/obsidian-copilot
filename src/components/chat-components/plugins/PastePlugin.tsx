@@ -78,7 +78,6 @@ export function PastePlugin({ enableURLPills = false, onImagePaste }: PastePlugi
         const hasValidPills = segments.some(
           (segment) =>
             segment.type === "note-pill" ||
-            segment.type === "active-note-pill" ||
             (enableURLPills && segment.type === "url-pill") ||
             segment.type === "tool-pill" ||
             segment.type === "folder-pill"

@@ -66,7 +66,6 @@ export interface CopilotSettings {
    * When disabled (default), use the first 10 words of the first user message.
    */
   generateAIChatTitleOnSave: boolean;
-  includeActiveNoteAsContext: boolean;
   customPromptsFolder: string;
   indexVaultToVectorStore: string;
   chatNoteContextPath: string;
@@ -131,6 +130,8 @@ export interface CopilotSettings {
   autoIncludeTextSelection: boolean;
   /** UI language */
   language: Language;
+  /** Maximum width for pill text display (in Tailwind units, default: 32 = tw-max-w-32) */
+  pillTextMaxWidth: number;
 }
 
 export const settingsStore = createStore();
@@ -290,9 +291,12 @@ export function sanitizeSettings(settings: CopilotSettings): CopilotSettings {
     sanitizedSettings.lexicalSearchRamLimit = Math.min(1000, Math.max(20, lexicalSearchRamLimit));
   }
 
-  // Ensure includeActiveNoteAsContext has a default value
-  if (typeof sanitizedSettings.includeActiveNoteAsContext !== "boolean") {
-    sanitizedSettings.includeActiveNoteAsContext = DEFAULT_SETTINGS.includeActiveNoteAsContext;
+  // Sanitize pillTextMaxWidth (minimum 16, default 32)
+  const pillTextMaxWidth = Number(settingsToSanitize.pillTextMaxWidth);
+  if (isNaN(pillTextMaxWidth) || pillTextMaxWidth < 16) {
+    sanitizedSettings.pillTextMaxWidth = DEFAULT_SETTINGS.pillTextMaxWidth;
+  } else {
+    sanitizedSettings.pillTextMaxWidth = pillTextMaxWidth;
   }
 
   // Ensure generateAIChatTitleOnSave has a default value
