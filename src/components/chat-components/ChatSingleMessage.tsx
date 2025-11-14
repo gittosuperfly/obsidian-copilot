@@ -1,14 +1,7 @@
 import { ChatButtons } from "@/components/chat-components/ChatButtons";
 import { SourcesModal } from "@/components/modals/SourcesModal";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import {
-  ContextFolderBadge,
-  ContextNoteBadge,
-  ContextSelectedTextBadge,
-  ContextTagBadge,
-  ContextUrlBadge,
-} from "@/components/chat-components/ContextBadges";
 import { InlineMessageEditor } from "@/components/chat-components/InlineMessageEditor";
+import { MessageContentWithPills } from "@/components/chat-components/MessageContentWithPills";
 import { TokenLimitWarning } from "@/components/chat-components/TokenLimitWarning";
 import {
   cleanupMessageErrorBlockRoots,
@@ -73,75 +66,7 @@ export const normalizeFootnoteRendering = (root: HTMLElement): void => {
     });
 };
 
-function MessageContext({ context }: { context: ChatMessage["context"] }) {
-  if (
-    !context ||
-    (!context.notes?.length &&
-      !context.urls?.length &&
-      !context.tags?.length &&
-      !context.folders?.length &&
-      !context.selectedTextContexts?.length)
-  ) {
-    return null;
-  }
-
-  return (
-    <div className="tw-flex tw-flex-wrap tw-gap-2">
-      {context.notes.map((note, index) => (
-        <Tooltip key={`note-${index}-${note.path}`}>
-          <TooltipTrigger asChild>
-            <div>
-              <ContextNoteBadge note={note} />
-            </div>
-          </TooltipTrigger>
-          <TooltipContent className="tw-max-w-sm tw-break-words">{note.path}</TooltipContent>
-        </Tooltip>
-      ))}
-      {context.urls.map((url, index) => (
-        <Tooltip key={`url-${index}-${url}`}>
-          <TooltipTrigger asChild>
-            <div>
-              <ContextUrlBadge url={url} />
-            </div>
-          </TooltipTrigger>
-          <TooltipContent className="tw-max-w-sm tw-break-words">{url}</TooltipContent>
-        </Tooltip>
-      ))}
-      {context.tags?.map((tag, index) => (
-        <Tooltip key={`tag-${index}-${tag}`}>
-          <TooltipTrigger asChild>
-            <div>
-              <ContextTagBadge tag={tag} />
-            </div>
-          </TooltipTrigger>
-          <TooltipContent className="tw-max-w-sm tw-break-words">{tag}</TooltipContent>
-        </Tooltip>
-      ))}
-      {context.folders?.map((folder, index) => (
-        <Tooltip key={`folder-${index}-${folder}`}>
-          <TooltipTrigger asChild>
-            <div>
-              <ContextFolderBadge folder={folder} />
-            </div>
-          </TooltipTrigger>
-          <TooltipContent className="tw-max-w-sm tw-break-words">{folder}</TooltipContent>
-        </Tooltip>
-      ))}
-      {context.selectedTextContexts?.map((selectedText, index) => (
-        <Tooltip key={`selectedText-${index}-${selectedText.id}`}>
-          <TooltipTrigger asChild>
-            <div>
-              <ContextSelectedTextBadge selectedText={selectedText} />
-            </div>
-          </TooltipTrigger>
-          <TooltipContent className="tw-max-w-sm tw-break-words">
-            {selectedText.notePath}
-          </TooltipContent>
-        </Tooltip>
-      ))}
-    </div>
-  );
-}
+// MessageContext component removed - context is now displayed inline as pills in the message content
 
 interface ChatSingleMessageProps {
   message: ChatMessage;
@@ -645,9 +570,11 @@ const ChatSingleMessage: React.FC<ChatSingleMessageProps> = ({
               return (
                 <div key={index}>
                   {message.sender === USER_SENDER ? (
-                    <div className="tw-whitespace-pre-wrap tw-break-words tw-text-[calc(var(--font-text-size)_-_2px)] tw-font-normal">
-                      {message.message}
-                    </div>
+                    <MessageContentWithPills
+                      message={message.message}
+                      app={app}
+                      currentActiveFile={app.workspace.getActiveFile()}
+                    />
                   ) : (
                     <div
                       ref={contentRef}
@@ -675,9 +602,11 @@ const ChatSingleMessage: React.FC<ChatSingleMessageProps> = ({
 
     // Fallback for messages without content array
     return message.sender === USER_SENDER ? (
-      <div className="tw-whitespace-pre-wrap tw-break-words tw-text-[calc(var(--font-text-size)_-_2px)] tw-font-normal">
-        {message.message}
-      </div>
+      <MessageContentWithPills
+        message={message.message}
+        app={app}
+        currentActiveFile={app.workspace.getActiveFile()}
+      />
     ) : (
       <div ref={contentRef} className={message.isErrorMessage ? "tw-text-error" : ""}></div>
     );
@@ -712,7 +641,6 @@ const ChatSingleMessage: React.FC<ChatSingleMessageProps> = ({
         }
       >
         <div className="tw-flex tw-max-w-full tw-flex-col tw-gap-2 tw-overflow-hidden">
-          {!isEditing && <MessageContext context={message.context} />}
           <div className="message-content">{renderMessageContent()}</div>
 
           {message.responseMetadata?.wasTruncated && message.sender !== USER_SENDER && (

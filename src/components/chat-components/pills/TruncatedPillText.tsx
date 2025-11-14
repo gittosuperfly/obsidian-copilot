@@ -40,7 +40,7 @@ export function TruncatedPillText({
   };
 
   return (
-    <TooltipProvider delayDuration={300}>
+    <TooltipProvider delayDuration={200}>
       <Tooltip open={open} onOpenChange={onOpenChange}>
         <TooltipTrigger asChild>
           <span className={cn("tw-inline-flex tw-items-center", maxWidth, className)}>
@@ -51,7 +51,11 @@ export function TruncatedPillText({
             <span className="tw-shrink-0">{closeBracket}</span>
           </span>
         </TooltipTrigger>
-        <TooltipContent className="tw-max-w-64 tw-text-wrap tw-break-words">
+        <TooltipContent
+          className="tw-max-w-64 tw-text-wrap tw-break-words"
+          side="top"
+          sideOffset={4}
+        >
           {tooltipContent || `${openBracket}${content}${closeBracket}`}
         </TooltipContent>
       </Tooltip>

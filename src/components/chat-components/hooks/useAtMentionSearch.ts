@@ -8,6 +8,7 @@ import { useAllNotes } from "./useAllNotes";
 import { useAllFolders } from "./useAllFolders";
 import { AtMentionCategory, AtMentionOption, CategoryOption } from "./useAtMentionCategories";
 import { getSettings } from "@/settings/model";
+import { useI18n } from "@/i18n";
 
 // Maximum number of results to show in @ mention search
 const MAX_SEARCH_RESULTS = 30;
@@ -23,6 +24,8 @@ export function useAtMentionSearch(
   availableCategoryOptions: CategoryOption[],
   currentActiveFile: TFile | null = null
 ): (CategoryOption | AtMentionOption)[] {
+  const { t } = useI18n();
+
   // Get raw data without pre-filtering
   const allNotes = useAllNotes();
   const allFolders = useAllFolders();
@@ -83,12 +86,12 @@ export function useAtMentionSearch(
           content: undefined,
         })) as (CategoryOption | AtMentionOption)[];
 
-        // Add "Active Note" option at the top if there is an active file
+        // Always show "Active Note" option first if there is an active file
         if (currentActiveFile) {
           const activeNoteOption: AtMentionOption = {
             key: `active-note-${currentActiveFile.path}`,
-            title: "Active Note",
-            subtitle: undefined,
+            title: t("chat.mention.activeNote"),
+            subtitle: currentActiveFile.basename,
             category: "activeNote" as AtMentionCategory,
             data: currentActiveFile,
             content: undefined,
@@ -109,14 +112,14 @@ export function useAtMentionSearch(
       });
 
       // Check if "active note" contains the query as a substring (case-insensitive)
-      const activeNoteTitle = "active note";
+      const activeNoteTitle = t("chat.mention.activeNote").toLowerCase();
       const activeNoteMatches = activeNoteTitle.includes(queryLower);
       const activeNoteOption =
         activeNoteMatches && currentActiveFile
           ? {
               key: `active-note-${currentActiveFile.path}`,
-              title: "Active Note",
-              subtitle: undefined,
+              title: t("chat.mention.activeNote"),
+              subtitle: currentActiveFile.basename,
               category: "activeNote" as AtMentionCategory,
               data: currentActiveFile,
               content: undefined,
@@ -134,10 +137,10 @@ export function useAtMentionSearch(
 
       const rankedNonToolItems = fuzzySearchResults.map((result) => result.obj);
 
-      // Tools first, then Active Note (if matches), then everything else ranked by fuzzy search
+      // Active Note first (if matches), then tools, then everything else ranked by fuzzy search
       return [
-        ...matchingTools,
         ...(activeNoteOption ? [activeNoteOption] : []),
+        ...matchingTools,
         ...rankedNonToolItems,
       ].slice(0, MAX_SEARCH_RESULTS);
     } else {
@@ -199,5 +202,6 @@ export function useAtMentionSearch(
     folderItems,
     availableCategoryOptions,
     currentActiveFile,
+    t,
   ]);
 }

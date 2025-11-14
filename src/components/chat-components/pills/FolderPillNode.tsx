@@ -75,9 +75,10 @@ export class FolderPillNode extends BasePillNode {
       <PillBadge>
         <TruncatedPillText
           content={this.getFolderPath()}
-          openBracket="{"
-          closeBracket="}"
+          openBracket=""
+          closeBracket=""
           tooltipContent={tooltipContent}
+          maxWidth="tw-max-w-32"
         />
       </PillBadge>
     );

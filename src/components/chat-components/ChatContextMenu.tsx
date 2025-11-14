@@ -1,20 +1,13 @@
-import { AlertCircle, CheckCircle, CircleDashed, Loader2, X } from "lucide-react";
+import { AlertCircle, CheckCircle, CircleDashed, Loader2 } from "lucide-react";
 import { TFile } from "obsidian";
 import React, { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import {
-  ContextNoteBadge,
-  ContextActiveNoteBadge,
-  ContextUrlBadge,
-  ContextFolderBadge,
-} from "@/components/chat-components/ContextBadges";
 import { SelectedTextContext } from "@/types/message";
 import { ChainType } from "@/chainFactory";
 import { Separator } from "@/components/ui/separator";
 import { useChainType } from "@/aiParams";
 import { useProjectContextStatus } from "@/hooks/useProjectContextStatus";
-import { isAdvancedChain, openFileInWorkspace } from "@/utils";
+import { isAdvancedChain } from "@/utils";
 import { AtMentionTypeahead } from "./AtMentionTypeahead";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
@@ -29,37 +22,6 @@ interface ChatContextMenuProps {
   showProgressCard: () => void;
   onTypeaheadSelect: (category: string, data: any) => void;
   lexicalEditorRef?: React.RefObject<any>;
-}
-
-function ContextSelection({
-  selectedText,
-  onRemoveContext,
-}: {
-  selectedText: SelectedTextContext;
-  onRemoveContext: (category: string, data: any) => void;
-}) {
-  const lineRange =
-    selectedText.startLine === selectedText.endLine
-      ? `L${selectedText.startLine}`
-      : `L${selectedText.startLine}-${selectedText.endLine}`;
-
-  return (
-    <Badge className="tw-items-center tw-py-0 tw-pl-2 tw-pr-0.5 tw-text-xs">
-      <div className="tw-flex tw-items-center tw-gap-1">
-        <span className="tw-max-w-40 tw-truncate">{selectedText.noteTitle}</span>
-        <span className="tw-text-xs tw-text-faint">{lineRange}</span>
-      </div>
-      <Button
-        variant="ghost2"
-        size="fit"
-        onClick={() => onRemoveContext("selectedText", selectedText.id)}
-        aria-label="Remove from context"
-        className="tw-text-muted"
-      >
-        <X className="tw-size-4" />
-      </Button>
-    </Badge>
-  );
 }
 
 export const ChatContextMenu: React.FC<ChatContextMenuProps> = ({
@@ -97,29 +59,6 @@ export const ChatContextMenu: React.FC<ChatContextMenuProps> = ({
     }, 100);
   };
 
-  /**
-   * Handles clicking on a badge to open the file in a new tab (or focus existing tab)
-   */
-  const handleBadgeClick = (file: TFile) => {
-    openFileInWorkspace(file);
-  };
-
-  const uniqueNotes = React.useMemo(() => {
-    const notesMap = new Map(contextNotes.map((note) => [note.path, note]));
-    return Array.from(notesMap.values());
-  }, [contextNotes]);
-
-  const uniqueUrls = React.useMemo(() => Array.from(new Set(contextUrls)), [contextUrls]);
-  const hasSelectedText = selectedTextContexts.length > 0;
-  const activeNoteVisible = includeActiveNote && !hasSelectedText && Boolean(currentActiveFile);
-
-  const hasContext =
-    uniqueNotes.length > 0 ||
-    uniqueUrls.length > 0 ||
-    selectedTextContexts.length > 0 ||
-    contextFolders.length > 0 ||
-    activeNoteVisible;
-
   // Get contextStatus from the shared hook
   const getContextStatusIcon = () => {
     switch (contextStatus) {
@@ -135,81 +74,44 @@ export const ChatContextMenu: React.FC<ChatContextMenuProps> = ({
   };
 
   return (
-    <div className="tw-flex tw-w-full tw-items-start tw-gap-1">
-      <div className="tw-flex tw-h-full tw-items-start">
-        <Popover open={showTypeahead} onOpenChange={setShowTypeahead}>
-          <PopoverTrigger asChild>
-            <Button
-              ref={buttonRef}
-              variant="ghost2"
-              size="fit"
-              className="tw-ml-1 tw-rounded-sm tw-border tw-border-solid tw-border-border tw-text-muted"
-            >
-              <span className="tw-text-base tw-font-medium tw-leading-none">@</span>
-              {!hasContext && <span className="tw-pr-1 tw-text-sm tw-leading-4">Add context</span>}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="tw-w-[400px] tw-p-0" align="start" side="top" sideOffset={4}>
-            <AtMentionTypeahead
-              isOpen={showTypeahead}
-              onClose={handleTypeaheadClose}
-              onSelect={handleTypeaheadSelect}
-              advancedModeEnabled={advancedModeEnabled}
-              currentActiveFile={currentActiveFile}
-            />
-          </PopoverContent>
-        </Popover>
-      </div>
-      <div className="tw-flex tw-flex-1 tw-flex-wrap tw-gap-1">
-        {activeNoteVisible && currentActiveFile && (
-          <ContextActiveNoteBadge
+    <>
+      {/* @按钮 - 缩小后放在按钮区域 */}
+      <Popover open={showTypeahead} onOpenChange={setShowTypeahead}>
+        <PopoverTrigger asChild>
+          <Button
+            ref={buttonRef}
+            variant="ghost2"
+            size="fit"
+            className="tw-text-muted hover:tw-text-accent"
+          >
+            <span className="tw-text-sm tw-font-medium tw-leading-none">@</span>
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="tw-w-[400px] tw-p-0" align="start" side="top" sideOffset={4}>
+          <AtMentionTypeahead
+            isOpen={showTypeahead}
+            onClose={handleTypeaheadClose}
+            onSelect={handleTypeaheadSelect}
+            advancedModeEnabled={advancedModeEnabled}
             currentActiveFile={currentActiveFile}
-            onRemove={() => onRemoveContext("activeNote", "")}
-            onClick={() => handleBadgeClick(currentActiveFile)}
           />
-        )}
-        {uniqueNotes.map((note) => (
-          <ContextNoteBadge
-            key={note.path}
-            note={note}
-            onRemove={() => onRemoveContext("notes", note.path)}
-            onClick={() => handleBadgeClick(note)}
-          />
-        ))}
-        {uniqueUrls.map((url) => (
-          <ContextUrlBadge key={url} url={url} onRemove={() => onRemoveContext("urls", url)} />
-        ))}
-        {contextFolders.map((folder) => (
-          <ContextFolderBadge
-            key={folder}
-            folder={folder}
-            onRemove={() => onRemoveContext("folders", folder)}
-          />
-        ))}
-        {selectedTextContexts.map((selectedText) => (
-          <ContextSelection
-            key={selectedText.id}
-            selectedText={selectedText}
-            onRemoveContext={onRemoveContext}
-          />
-        ))}
-      </div>
+        </PopoverContent>
+      </Popover>
 
+      {/* 项目模式下的状态指示器 */}
       {currentChain === ChainType.PROJECT_CHAIN && (
         <>
-          <Separator orientation="vertical" />
-          <div className="">
-            <Button
-              variant="ghost2"
-              size="fit"
-              className="tw-text-muted"
-              onClick={() => showProgressCard()}
-            >
-              {getContextStatusIcon()}
-            </Button>
-          </div>
+          <Separator orientation="vertical" className="tw-h-4" />
+          <Button
+            variant="ghost2"
+            size="fit"
+            className="tw-text-muted"
+            onClick={() => showProgressCard()}
+          >
+            {getContextStatusIcon()}
+          </Button>
         </>
       )}
-    </div>
+    </>
   );
 };

@@ -107,16 +107,17 @@ function ActiveNotePillComponent(): JSX.Element {
   if (!currentActiveFile) {
     return (
       <PillBadge>
-        <div className="tw-flex tw-items-center tw-gap-1">
+        <div className="tw-flex tw-items-center tw-gap-1.5">
           <TruncatedPillText
             content="activeNote"
-            openBracket="{"
-            closeBracket="}"
+            openBracket=""
+            closeBracket=""
             tooltipContent={
               <div className="tw-text-left">
                 Will use the active note at the time the message is sent
               </div>
             }
+            maxWidth="tw-max-w-32"
           />
         </div>
       </PillBadge>
@@ -130,15 +131,16 @@ function ActiveNotePillComponent(): JSX.Element {
 
   return (
     <PillBadge>
-      <div className="tw-flex tw-items-center tw-gap-1">
+      <div className="tw-flex tw-items-center tw-gap-1.5">
         <TruncatedPillText
           content={noteTitle}
-          openBracket="[["
-          closeBracket="]]"
+          openBracket=""
+          closeBracket=""
           tooltipContent={<div className="tw-text-left">{notePath}</div>}
+          maxWidth="tw-max-w-32"
         />
-        <span className="tw-text-xs tw-text-faint">Current</span>
-        {isPdf && <span className="tw-text-xs tw-text-faint">pdf</span>}
+        <span className="tw-text-[10px] tw-text-faint">Current</span>
+        {isPdf && <span className="tw-text-[10px] tw-text-faint">pdf</span>}
       </div>
     </PillBadge>
   );

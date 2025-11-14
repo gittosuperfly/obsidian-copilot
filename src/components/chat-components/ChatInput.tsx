@@ -20,13 +20,22 @@ import { SelectedTextContext } from "@/types/message";
 import { CornerDownLeft, Image, Loader2, StopCircle, X } from "lucide-react";
 import { App, Notice, TFile } from "obsidian";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { $getSelection, $isRangeSelection } from "lexical";
+import { $getSelection, $isRangeSelection, $getRoot } from "lexical";
 import { ContextControl } from "./ContextControl";
-import { $removePillsByPath } from "./pills/NotePillNode";
-import { $removeActiveNotePills } from "./pills/ActiveNotePillNode";
+import { $removePillsByPath, $createNotePillNode } from "./pills/NotePillNode";
+import {
+  $removeActiveNotePills,
+  $createActiveNotePillNode,
+  $isActiveNotePillNode,
+} from "./pills/ActiveNotePillNode";
 import { $removePillsByURL } from "./pills/URLPillNode";
-import { $removePillsByFolder } from "./pills/FolderPillNode";
+import { $removePillsByFolder, $createFolderPillNode } from "./pills/FolderPillNode";
 import { $removePillsByToolName, $createToolPillNode } from "./pills/ToolPillNode";
+import {
+  $createSelectedTextPillNode,
+  $removePillsBySelectedTextId,
+  $isSelectedTextPillNode,
+} from "./pills/SelectedTextPillNode";
 import LexicalEditor from "./LexicalEditor";
 
 interface ChatInputProps {
@@ -316,16 +325,80 @@ const ChatInput: React.FC<ChatInputProps> = ({
   const handleAddToContext = (category: string, data: any) => {
     switch (category) {
       case "activeNote":
-        // Set active note context flag (no pill needed - context badge shows it)
+        // Add active note pill to lexical editor
+        if (lexicalEditorRef.current) {
+          // Check if active note pill already exists before creating
+          let hasActiveNotePill = false;
+          lexicalEditorRef.current.getEditorState().read(() => {
+            const root = $getRoot();
+            function traverse(node: any): void {
+              if ($isActiveNotePillNode(node)) {
+                hasActiveNotePill = true;
+                return;
+              }
+              if (typeof node.getChildren === "function") {
+                const children = node.getChildren();
+                for (const child of children) {
+                  if (hasActiveNotePill) return;
+                  traverse(child);
+                }
+              }
+            }
+            traverse(root);
+          });
+
+          if (!hasActiveNotePill) {
+            lexicalEditorRef.current.update(() => {
+              const selection = $getSelection();
+              if ($isRangeSelection(selection)) {
+                const activeNotePill = $createActiveNotePillNode();
+                selection.insertNodes([activeNotePill]);
+              }
+            });
+          }
+        }
         setIncludeActiveNote(true);
         break;
       case "notes":
         if (data instanceof TFile) {
           const activeNote = app.workspace.getActiveFile();
           if (activeNote && data.path === activeNote.path) {
+            // This is the active note - use active note pill instead
+            if (lexicalEditorRef.current) {
+              // Check if active note pill already exists before creating
+              let hasActiveNotePill = false;
+              lexicalEditorRef.current.getEditorState().read(() => {
+                const root = $getRoot();
+                function traverse(node: any): void {
+                  if ($isActiveNotePillNode(node)) {
+                    hasActiveNotePill = true;
+                    return;
+                  }
+                  if (typeof node.getChildren === "function") {
+                    const children = node.getChildren();
+                    for (const child of children) {
+                      if (hasActiveNotePill) return;
+                      traverse(child);
+                    }
+                  }
+                }
+                traverse(root);
+              });
+
+              if (!hasActiveNotePill) {
+                lexicalEditorRef.current.update(() => {
+                  const selection = $getSelection();
+                  if ($isRangeSelection(selection)) {
+                    const activeNotePill = $createActiveNotePillNode();
+                    selection.insertNodes([activeNotePill]);
+                  }
+                });
+              }
+            }
             setIncludeActiveNote(true);
             setContextNotes((prev) => prev.filter((n) => n.path !== data.path));
           } else {
+            // Regular note - add to context and create pill in editor
             setContextNotes((prev) => {
               const existingNote = prev.find((n) => n.path === data.path);
               if (existingNote) {
@@ -334,6 +407,16 @@ const ChatInput: React.FC<ChatInputProps> = ({
                 return [...prev, data];
               }
             });
+            // Create note pill in editor
+            if (lexicalEditorRef.current) {
+              lexicalEditorRef.current.update(() => {
+                const selection = $getSelection();
+                if ($isRangeSelection(selection)) {
+                  const notePill = $createNotePillNode(data.basename, data.path);
+                  selection.insertNodes([notePill]);
+                }
+              });
+            }
           }
         }
         break;
@@ -352,7 +435,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
         }
         break;
       case "folders":
-        // For folders from context menu, update contextFolders directly (no pills in editor)
+        // Add folder pill to lexical editor when selected from @ mention typeahead
         if (data && data.path) {
           const folderPath = data.path;
           setContextFolders((prev) => {
@@ -362,6 +445,16 @@ const ChatInput: React.FC<ChatInputProps> = ({
             }
             return prev;
           });
+          // Create folder pill in editor
+          if (lexicalEditorRef.current) {
+            lexicalEditorRef.current.update(() => {
+              const selection = $getSelection();
+              if ($isRangeSelection(selection)) {
+                const folderPill = $createFolderPillNode(folderPath);
+                selection.insertNodes([folderPill]);
+              }
+            });
+          }
         }
         break;
     }
@@ -410,6 +503,12 @@ const ChatInput: React.FC<ChatInputProps> = ({
         if (typeof data === "string") {
           // data is the id
           onRemoveSelectedText?.(data);
+          // Also remove corresponding pill from editor
+          if (lexicalEditorRef.current) {
+            lexicalEditorRef.current.update(() => {
+              $removePillsBySelectedTextId(data);
+            });
+          }
         }
         break;
     }
@@ -522,6 +621,67 @@ const ChatInput: React.FC<ChatInputProps> = ({
     lexicalEditorRef.current = editor;
   }, []);
 
+  // Auto-create active note pill when includeActiveNote is enabled
+  // This only runs when includeActiveNote changes from settings or default behavior,
+  // not when manually added via @ button (which handles creation itself)
+  useEffect(() => {
+    if (!includeActiveNote || !currentActiveNote || !lexicalEditorRef.current) {
+      return;
+    }
+
+    // Use a small delay to ensure any manual pill creation from handleAddToContext has completed
+    const timeoutId = setTimeout(() => {
+      if (!lexicalEditorRef.current) return;
+
+      // Check if active note pill already exists
+      let hasActiveNotePill = false;
+      lexicalEditorRef.current.getEditorState().read(() => {
+        const root = $getRoot();
+        function traverse(node: any): void {
+          if ($isActiveNotePillNode(node)) {
+            hasActiveNotePill = true;
+            return;
+          }
+          if (typeof node.getChildren === "function") {
+            const children = node.getChildren();
+            for (const child of children) {
+              if (hasActiveNotePill) return;
+              traverse(child);
+            }
+          }
+        }
+        traverse(root);
+      });
+
+      // If no active note pill exists, create one at the cursor position or end
+      if (!hasActiveNotePill) {
+        lexicalEditorRef.current.update(() => {
+          const selection = $getSelection();
+          const activeNotePill = $createActiveNotePillNode();
+
+          if ($isRangeSelection(selection) && !selection.isCollapsed()) {
+            // If there's a selection, insert at the start of selection
+            selection.insertNodes([activeNotePill]);
+          } else if ($isRangeSelection(selection)) {
+            // If cursor is positioned, insert at cursor
+            selection.insertNodes([activeNotePill]);
+          } else {
+            // Otherwise, append to the end
+            const root = $getRoot();
+            const lastChild = root.getLastChild();
+            if (lastChild) {
+              lastChild.insertAfter(activeNotePill);
+            } else {
+              root.append(activeNotePill);
+            }
+          }
+        });
+      }
+    }, 50); // Small delay to let handleAddToContext complete
+
+    return () => clearTimeout(timeoutId);
+  }, [includeActiveNote, currentActiveNote]);
+
   // Handle Escape key for edit mode
   useEffect(() => {
     if (!editMode || !onEditCancel) return;
@@ -571,24 +731,67 @@ const ChatInput: React.FC<ChatInputProps> = ({
     }
   }, [isAdvancedMode, autonomousAgentToggle, vaultToggle, t]);
 
+  // Auto-create selected text pills when selectedTextContexts change
+  useEffect(() => {
+    if (!selectedTextContexts || selectedTextContexts.length === 0 || !lexicalEditorRef.current) {
+      return;
+    }
+
+    lexicalEditorRef.current.getEditorState().read(() => {
+      const root = $getRoot();
+      const existingIds = new Set<string>();
+
+      // Find existing selected text pills
+      function traverse(node: any): void {
+        if ($isSelectedTextPillNode(node)) {
+          existingIds.add(node.getSelectedTextId());
+        }
+        if (typeof node.getChildren === "function") {
+          const children = node.getChildren();
+          for (const child of children) {
+            traverse(child);
+          }
+        }
+      }
+      traverse(root);
+
+      // Create pills for new selected text contexts
+      const newContexts = selectedTextContexts.filter((context) => !existingIds.has(context.id));
+
+      if (newContexts.length > 0) {
+        lexicalEditorRef.current.update(() => {
+          const selection = $getSelection();
+          newContexts.forEach((context) => {
+            const pill = $createSelectedTextPillNode(
+              context.id,
+              context.noteTitle,
+              context.notePath,
+              context.startLine,
+              context.endLine
+            );
+
+            if ($isRangeSelection(selection)) {
+              selection.insertNodes([pill]);
+            } else {
+              const root = $getRoot();
+              const lastChild = root.getLastChild();
+              if (lastChild) {
+                lastChild.insertAfter(pill);
+              } else {
+                root.append(pill);
+              }
+            }
+          });
+        });
+      }
+    });
+  }, [selectedTextContexts]);
+
   return (
     <div
-      className="tw-flex tw-w-full tw-flex-col tw-gap-0.5 tw-rounded-md tw-border tw-border-solid tw-border-border tw-px-1 tw-pb-1 tw-pt-2 tw-@container/chat-input"
+      className="tw-flex tw-w-full tw-flex-col tw-gap-1 tw-rounded-md tw-border tw-border-solid tw-border-border tw-p-1.5 tw-@container/chat-input"
       ref={containerRef}
     >
-      <ContextControl
-        contextNotes={contextNotes}
-        includeActiveNote={includeActiveNote}
-        activeNote={currentActiveNote}
-        contextUrls={contextUrls}
-        contextFolders={contextFolders}
-        selectedTextContexts={selectedTextContexts}
-        showProgressCard={showProgressCard}
-        lexicalEditorRef={lexicalEditorRef}
-        onAddToContext={handleAddToContext}
-        onRemoveFromContext={handleRemoveFromContext}
-      />
-
       {selectedImages.length > 0 && (
         <div className="selected-images">
           {selectedImages.map((file, index) => (
@@ -644,7 +847,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
         />
       </div>
 
-      <div className="tw-flex tw-h-6 tw-justify-between tw-gap-1 tw-px-1">
+      <div className="tw-flex tw-h-6 tw-justify-between tw-gap-1">
         {isGenerating ? (
           <div className="tw-flex tw-items-center tw-gap-1 tw-px-1 tw-text-sm tw-text-muted">
             <Loader2 className="tw-size-3 tw-animate-spin" />
@@ -692,6 +895,18 @@ const ChatInput: React.FC<ChatInputProps> = ({
                 currentChain={currentChain}
                 onVaultToggleOff={handleVaultToggleOff}
                 onComposerToggleOff={handleComposerToggleOff}
+              />
+              <ContextControl
+                contextNotes={contextNotes}
+                includeActiveNote={includeActiveNote}
+                activeNote={currentActiveNote}
+                contextUrls={contextUrls}
+                contextFolders={contextFolders}
+                selectedTextContexts={selectedTextContexts}
+                showProgressCard={showProgressCard}
+                lexicalEditorRef={lexicalEditorRef}
+                onAddToContext={handleAddToContext}
+                onRemoveFromContext={handleRemoveFromContext}
               />
               <TooltipProvider delayDuration={0}>
                 <Tooltip>

@@ -2,6 +2,7 @@ import React, { useMemo } from "react";
 import { TFile, TFolder } from "obsidian";
 import { FileText, Wrench, Folder } from "lucide-react";
 import { TypeaheadOption } from "../TypeaheadMenuContent";
+import { useI18n } from "@/i18n";
 
 export type AtMentionCategory = "notes" | "tools" | "folders" | "activeNote";
 
@@ -15,29 +16,32 @@ export interface CategoryOption extends TypeaheadOption {
   icon: React.ReactNode;
 }
 
-export const CATEGORY_OPTIONS: CategoryOption[] = [
-  {
-    key: "notes",
-    title: "Notes",
-    subtitle: "Reference notes in your vault",
-    category: "notes",
-    icon: <FileText className="tw-size-4" />,
-  },
-  {
-    key: "tools",
-    title: "Tools",
-    subtitle: "AI tools and commands",
-    category: "tools",
-    icon: <Wrench className="tw-size-4" />,
-  },
-  {
-    key: "folders",
-    title: "Folders",
-    subtitle: "Reference vault folders",
-    category: "folders",
-    icon: <Folder className="tw-size-4" />,
-  },
-];
+// Note: This is now a function that uses i18n, not a constant
+function getCategoryOptions(t: (key: string) => string): CategoryOption[] {
+  return [
+    {
+      key: "notes",
+      title: t("chat.mention.category.notes"),
+      subtitle: t("chat.mention.category.notes.subtitle"),
+      category: "notes",
+      icon: <FileText className="tw-size-4" />,
+    },
+    {
+      key: "tools",
+      title: t("chat.mention.category.tools"),
+      subtitle: t("chat.mention.category.tools.subtitle"),
+      category: "tools",
+      icon: <Wrench className="tw-size-4" />,
+    },
+    {
+      key: "folders",
+      title: t("chat.mention.category.folders"),
+      subtitle: t("chat.mention.category.folders.subtitle"),
+      category: "folders",
+      icon: <Folder className="tw-size-4" />,
+    },
+  ];
+}
 
 /**
  * Hook that provides available @ mention categories based on whether advanced tools are enabled.
@@ -47,13 +51,16 @@ export const CATEGORY_OPTIONS: CategoryOption[] = [
  * @returns Array of CategoryOption objects
  */
 export function useAtMentionCategories(advancedModeEnabled: boolean = false): CategoryOption[] {
+  const { t } = useI18n();
+
   // Filter category options based on advanced-tool availability
   return useMemo(() => {
-    return CATEGORY_OPTIONS.filter((cat) => {
+    const categoryOptions = getCategoryOptions(t);
+    return categoryOptions.filter((cat) => {
       if (cat.category === "tools") {
         return advancedModeEnabled;
       }
       return true;
     });
-  }, [advancedModeEnabled]);
+  }, [advancedModeEnabled, t]);
 }

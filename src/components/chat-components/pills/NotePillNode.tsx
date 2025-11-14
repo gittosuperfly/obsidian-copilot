@@ -141,15 +141,16 @@ function NotePillComponent({ node }: NotePillComponentProps): JSX.Element {
 
   return (
     <PillBadge>
-      <div className="tw-flex tw-items-center tw-gap-1">
+      <div className="tw-flex tw-items-center tw-gap-1.5">
         <TruncatedPillText
           content={noteTitle}
-          openBracket="[["
-          closeBracket="]]"
+          openBracket=""
+          closeBracket=""
           tooltipContent={tooltipContent}
+          maxWidth="tw-max-w-32"
         />
-        {isPdf && <span className="tw-text-xs tw-text-faint">pdf</span>}
-        {isCanvas && <span className="tw-text-xs tw-text-faint">canvas</span>}
+        {isPdf && <span className="tw-text-[10px] tw-text-faint">pdf</span>}
+        {isCanvas && <span className="tw-text-[10px] tw-text-faint">canvas</span>}
       </div>
     </PillBadge>
   );

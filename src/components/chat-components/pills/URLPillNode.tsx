@@ -132,9 +132,9 @@ export class URLPillNode extends BasePillNode {
 
     return (
       <PillBadge className="tw-whitespace-nowrap">
-        <div className="tw-flex tw-items-center tw-gap-1">
-          <span className="tw-max-w-40 tw-truncate">{displayText}</span>
-          {this.__isActive && <span className="tw-text-xs tw-text-faint">Active</span>}
+        <div className="tw-flex tw-items-center tw-gap-1.5">
+          <span className="tw-max-w-32 tw-truncate tw-text-xs">{displayText}</span>
+          {this.__isActive && <span className="tw-text-[10px] tw-text-faint">Active</span>}
         </div>
       </PillBadge>
     );
