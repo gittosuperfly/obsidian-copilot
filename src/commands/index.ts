@@ -22,14 +22,40 @@ import { ensureFolderExists, isSourceModeOn } from "@/utils";
 import { Editor, MarkdownView, Notice, TFile } from "obsidian";
 import { v4 as uuidv4 } from "uuid";
 import { COMMAND_IDS, COMMAND_NAMES, CommandId } from "../constants";
+import { translate } from "@/i18n";
+import { DEFAULT_LANGUAGE } from "@/i18n";
+import { getSettings } from "@/settings/model";
+
+/**
+ * Get translated command name
+ */
+function getCommandName(id: CommandId, language: string = DEFAULT_LANGUAGE): string {
+  // Map command IDs to translation keys
+  const translationKeyMap: Partial<Record<CommandId, string>> = {
+    [COMMAND_IDS.ADD_SELECTION_TO_CHAT_CONTEXT]: "command.addSelectionToChatContext",
+    [COMMAND_IDS.TRIGGER_QUICK_COMMAND]: "command.triggerQuickCommand",
+    [COMMAND_IDS.ADD_CUSTOM_COMMAND]: "command.addCustomCommand",
+    [COMMAND_IDS.APPLY_CUSTOM_COMMAND]: "command.applyCustomCommand",
+  };
+
+  const translationKey = translationKeyMap[id];
+  if (translationKey) {
+    return translate(translationKey as any, {}, language as any);
+  }
+
+  // Fallback to default English name
+  return COMMAND_NAMES[id];
+}
 
 /**
  * Add a command to the plugin.
  */
 export function addCommand(plugin: CopilotPlugin, id: CommandId, callback: () => void) {
+  const settings = getSettings();
+  const language = settings.language ?? DEFAULT_LANGUAGE;
   plugin.addCommand({
     id,
-    name: COMMAND_NAMES[id],
+    name: getCommandName(id, language),
     callback,
   });
 }
@@ -42,9 +68,11 @@ function addEditorCommand(
   id: CommandId,
   callback: (editor: Editor) => void
 ) {
+  const settings = getSettings();
+  const language = settings.language ?? DEFAULT_LANGUAGE;
   plugin.addCommand({
     id,
-    name: COMMAND_NAMES[id],
+    name: getCommandName(id, language),
     editorCallback: callback,
   });
 }
@@ -57,9 +85,11 @@ export function addCheckCommand(
   id: CommandId,
   callback: (checking: boolean) => boolean | void
 ) {
+  const settings = getSettings();
+  const language = settings.language ?? DEFAULT_LANGUAGE;
   plugin.addCommand({
     id,
-    name: COMMAND_NAMES[id],
+    name: getCommandName(id, language),
     checkCallback: callback,
   });
 }

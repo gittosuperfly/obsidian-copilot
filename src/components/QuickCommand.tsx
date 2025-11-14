@@ -11,6 +11,7 @@ import { CustomCommand } from "@/commands/type";
 import { removeQuickCommandBlocks } from "@/commands/customCommandUtils";
 import CopilotPlugin from "@/main";
 import { updateSetting, useSettingsValue } from "@/settings/model";
+import { useI18n } from "@/i18n";
 
 interface QuickCommandProps {
   plugin: CopilotPlugin;
@@ -18,6 +19,7 @@ interface QuickCommandProps {
 }
 
 export function QuickCommand({ plugin, onRemove }: QuickCommandProps) {
+  const { t } = useI18n();
   const [prompt, setPrompt] = useState("");
   const settings = useSettingsValue();
   const [selectedText, setSelectedText] = useState("");
@@ -45,7 +47,7 @@ export function QuickCommand({ plugin, onRemove }: QuickCommandProps) {
 
   const handleSubmit = async () => {
     if (!prompt.trim()) {
-      new Notice("Please enter a prompt");
+      new Notice(t("quickCommand.notice.enterPrompt"));
       return;
     }
 
@@ -89,7 +91,7 @@ Response format: Match the format implied by the user's request (e.g., if they a
     }
 
     const quickCommand: CustomCommand = {
-      title: "Quick Command",
+      title: t("quickCommand.title"),
       content: userContent,
       showInContextMenu: false,
       showInSlashMenu: false,
@@ -146,7 +148,7 @@ Response format: Match the format implied by the user's request (e.g., if they a
           ref={textareaRef}
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
-          placeholder="Ask me anything..."
+          placeholder={t("quickCommand.placeholder")}
           className="tw-min-h-24 tw-resize-none"
           rows={3}
         />
@@ -170,17 +172,17 @@ Response format: Match the format implied by the user's request (e.g., if they a
                 htmlFor="includeActiveNote"
                 className="tw-cursor-pointer tw-text-sm tw-text-muted"
               >
-                Include note context
+                {t("quickCommand.includeNoteContext")}
               </label>
             </div>
           </div>
 
           <div className="tw-flex tw-items-center tw-gap-2">
             <Button variant="secondary" onClick={handleCancel} size="sm">
-              Cancel
+              {t("quickCommand.cancel")}
             </Button>
             <Button onClick={handleSubmit} size="sm">
-              Submit
+              {t("quickCommand.submit")}
             </Button>
           </div>
         </div>

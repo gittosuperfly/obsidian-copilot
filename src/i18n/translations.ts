@@ -702,6 +702,29 @@ const en = {
     "Create your project-based AI assistants with custom instructions, context, and model configurations.",
   "projectList.clickToChat": "Click a project card to start chatting",
   "projectList.edit": "Edit",
+  // Context Menu
+  "contextMenu.copilot": "Copilot",
+  "contextMenu.addSelectionToContext": "Add selection to chat context",
+  "contextMenu.triggerQuickCommand": "Trigger quick command",
+  "contextMenu.notice.noEditor": "No active editor found",
+  "contextMenu.notice.noTextSelected": "No text selected",
+  "contextMenu.notice.noActiveFile": "No active file",
+  "contextMenu.notice.couldNotDetermineRange": "Could not determine selection range",
+  "contextMenu.notice.quickCommandNotAvailable": "Quick command is not available in source mode.",
+  "contextMenu.notice.selectTextFirst":
+    "Please select some text first. Selected text is required for quick commands.",
+  // Command Names
+  "command.addSelectionToChatContext": "Add selection to chat context",
+  "command.triggerQuickCommand": "Trigger quick command",
+  "command.addCustomCommand": "Add new custom command",
+  "command.applyCustomCommand": "Apply custom command",
+  // Quick Command
+  "quickCommand.title": "Quick Command",
+  "quickCommand.placeholder": "Ask me anything...",
+  "quickCommand.includeNoteContext": "Include note context",
+  "quickCommand.cancel": "Cancel",
+  "quickCommand.submit": "Submit",
+  "quickCommand.notice.enterPrompt": "Please enter a prompt",
 } as const;
 
 export type TranslationKey = keyof typeof en;
@@ -1354,6 +1377,28 @@ const zh: Record<TranslationKey, string> = {
   "projectList.description": "创建基于项目的 AI 助手，包含自定义指令、上下文和模型配置。",
   "projectList.clickToChat": "点击项目卡片开始对话",
   "projectList.edit": "编辑",
+  // Context Menu
+  "contextMenu.copilot": "Copilot",
+  "contextMenu.addSelectionToContext": "添加选中文本到聊天上下文",
+  "contextMenu.triggerQuickCommand": "触发快速命令",
+  "contextMenu.notice.noEditor": "未找到活动的编辑器",
+  "contextMenu.notice.noTextSelected": "未选中文本",
+  "contextMenu.notice.noActiveFile": "未找到活动文件",
+  "contextMenu.notice.couldNotDetermineRange": "无法确定选中范围",
+  "contextMenu.notice.quickCommandNotAvailable": "快速命令在源代码模式下不可用。",
+  "contextMenu.notice.selectTextFirst": "请先选中一些文本。快速命令需要选中文本。",
+  // Command Names
+  "command.addSelectionToChatContext": "添加选中文本到聊天上下文",
+  "command.triggerQuickCommand": "触发快速命令",
+  "command.addCustomCommand": "添加新的自定义命令",
+  "command.applyCustomCommand": "应用自定义命令",
+  // Quick Command
+  "quickCommand.title": "快速命令",
+  "quickCommand.placeholder": "问我任何问题...",
+  "quickCommand.includeNoteContext": "包含笔记上下文",
+  "quickCommand.cancel": "取消",
+  "quickCommand.submit": "提交",
+  "quickCommand.notice.enterPrompt": "请输入提示内容",
 };
 
 export const translations: Record<Language, Record<TranslationKey, string>> = {

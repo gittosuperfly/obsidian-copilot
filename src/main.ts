@@ -125,8 +125,8 @@ export default class CopilotPlugin extends Plugin {
     });
 
     this.registerEvent(
-      this.app.workspace.on("editor-menu", (menu: Menu) => {
-        return registerContextMenu(menu);
+      this.app.workspace.on("editor-menu", (menu: Menu, editor: Editor) => {
+        return registerContextMenu(menu, editor);
       })
     );
 
