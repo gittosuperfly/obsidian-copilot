@@ -85,10 +85,6 @@ const en = {
   "settings.saving.filenameTemplate.placeholder": "{$date}_{$time}__{$topic}",
   "settings.saving.filenameTemplate.button": "Apply",
   "settings.saving.filenameTemplate.buttonLoading": "Applying...",
-  "settings.advanced.systemPrompt.title": "User System Prompt",
-  "settings.advanced.systemPrompt.description":
-    "Customize the system prompt for all messages. Use with caution as it can change Copilot's behavior.",
-  "settings.advanced.systemPrompt.placeholder": "Enter your system prompt here...",
   "settings.advanced.encryption.title": "Enable Encryption",
   "settings.advanced.encryption.description": "Encrypt and securely store API keys.",
   "settings.advanced.debug.title": "Debug Mode",
@@ -524,9 +520,16 @@ const en = {
   "settings.qa.disableMobile.title": "Disable index loading on mobile",
   "settings.qa.disableMobile.description":
     "When enabled, Copilot index won't be loaded on mobile devices to save resources. Only chat mode will be available. Any existing index from desktop sync will be preserved. Uncheck to enable QA modes on mobile.",
-  "settings.command.heading": "Custom Commands",
+  "settings.command.heading": "Commands & Prompts",
   "settings.command.description":
-    "Custom commands are preset prompts that you can trigger in the editor by right-clicking and selecting them from the context menu or by using a / command in the chat to load them into your chat input.",
+    "Manage reusable commands plus system/composer prompt documents that Copilot relies on. Commands can still be triggered from the context menu or slash menu.",
+  "settings.command.promptTypeLabel": "Prompt type",
+  "settings.command.systemPromptIndicator": "System prompt",
+  "settings.command.composerPromptIndicator": "Composer format",
+  "settings.command.markAsSystemPrompt": "Mark as system prompt",
+  "settings.command.markAsComposerPrompt": "Mark as Composer output format",
+  "settings.command.promptTypeInfo":
+    "System/Composer prompts cannot appear in context or slash menus.",
   "settings.command.folder.title": "Custom Prompts Folder Name",
   "settings.command.folder.description": "Folder where custom prompts are stored",
   "settings.command.folder.placeholder": "copilot/copilot-custom-prompts",
@@ -816,10 +819,6 @@ const zh: Record<TranslationKey, string> = {
   "settings.saving.filenameTemplate.placeholder": "{$date}_{$time}__{$topic}",
   "settings.saving.filenameTemplate.button": "应用",
   "settings.saving.filenameTemplate.buttonLoading": "正在应用...",
-  "settings.advanced.systemPrompt.title": "自定义系统提示词",
-  "settings.advanced.systemPrompt.description":
-    "自定义所有对话使用的系统提示词，可能会改变 Copilot 的行为，请谨慎使用。",
-  "settings.advanced.systemPrompt.placeholder": "在此输入系统提示词…",
   "settings.advanced.encryption.title": "启用加密",
   "settings.advanced.encryption.description": "加密并安全存储 API Key。",
   "settings.advanced.debug.title": "调试模式",
@@ -1219,9 +1218,15 @@ const zh: Record<TranslationKey, string> = {
   "settings.qa.disableMobile.title": "在移动设备上禁用索引加载",
   "settings.qa.disableMobile.description":
     "启用时，Copilot 索引不会在移动设备上加载以节省资源。仅聊天模式可用。来自桌面同步的现有索引将被保留。取消选中以在移动设备上启用 QA 模式。",
-  "settings.command.heading": "自定义命令",
+  "settings.command.heading": "命令与提示",
   "settings.command.description":
-    "自定义命令是预设提示，可以在编辑器中右键点击从上下文菜单选择触发，或在聊天中使用 / 命令加载到输入框。",
+    "同时管理可复用命令以及 Copilot 依赖的系统/Composer 提示文档。命令依旧可以在编辑器右键菜单或聊天输入框中的 / 命令里触发。",
+  "settings.command.promptTypeLabel": "提示类型",
+  "settings.command.systemPromptIndicator": "系统提示词",
+  "settings.command.composerPromptIndicator": "Composer 输出格式",
+  "settings.command.markAsSystemPrompt": "标记为系统提示词",
+  "settings.command.markAsComposerPrompt": "标记为 Composer 输出格式",
+  "settings.command.promptTypeInfo": "系统/Composer 提示文档不会出现在上下文或斜杠菜单中。",
   "settings.command.folder.title": "自定义提示文件夹名称",
   "settings.command.folder.description": "存储自定义提示的文件夹",
   "settings.command.folder.placeholder": "copilot/copilot-custom-prompts",

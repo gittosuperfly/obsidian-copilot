@@ -1,7 +1,6 @@
 import { AVAILABLE_TOOLS } from "@/components/chat-components/constants/tools";
 import {
   ABORT_REASON,
-  COMPOSER_OUTPUT_INSTRUCTIONS,
   LOADING_MESSAGES,
   MAX_CHARS_FOR_LOCAL_SEARCH_CONTEXT,
   ModelCapability,
@@ -14,7 +13,7 @@ import {
   MessageContent,
 } from "@/imageProcessing/imageProcessor";
 import { logInfo, logWarn } from "@/logger";
-import { getSettings, getSystemPromptWithMemory } from "@/settings/model";
+import { getComposerPrompt, getSettings, getSystemPromptWithMemory } from "@/settings/model";
 import { writeToFileTool } from "@/tools/ComposerTools";
 import { ToolManager } from "@/tools/toolManager";
 import { ToolResultFormatter } from "@/tools/ToolResultFormatter";
@@ -282,14 +281,14 @@ export class AdvancedChainRunner extends BaseChainRunner {
   }
 
   /**
-   * If userMessage.message contains '@composer', append COMPOSER_OUTPUT_INSTRUCTIONS to the text content.
+   * If userMessage.message contains '@composer', append Composer output instructions to the text content.
    * Handles both string and MessageContent[] types.
    */
   private appendComposerInstructionsIfNeeded(content: string, userMessage: ChatMessage): string {
     if (!userMessage.message || !userMessage.message.includes("@composer")) {
       return content;
     }
-    const composerPrompt = `<OUTPUT_FORMAT>\n${COMPOSER_OUTPUT_INSTRUCTIONS}\n</OUTPUT_FORMAT>`;
+    const composerPrompt = `<OUTPUT_FORMAT>\n${getComposerPrompt()}\n</OUTPUT_FORMAT>`;
     return `${content}\n\n${composerPrompt}`;
   }
 

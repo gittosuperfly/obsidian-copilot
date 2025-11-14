@@ -7,11 +7,13 @@ import {
 import { CustomCommand } from "@/commands/type";
 import { CustomError } from "@/error";
 import {
+  COPILOT_COMMAND_COMPOSER_PROMPT,
   COPILOT_COMMAND_CONTEXT_MENU_ENABLED,
   COPILOT_COMMAND_CONTEXT_MENU_ORDER,
   COPILOT_COMMAND_LAST_USED,
   COPILOT_COMMAND_MODEL_KEY,
   COPILOT_COMMAND_SLASH_ENABLED,
+  COPILOT_COMMAND_SYSTEM_PROMPT,
 } from "@/commands/constants";
 import {
   addPendingFileWrite,
@@ -69,6 +71,8 @@ export class CustomCommandManager {
         frontmatter[COPILOT_COMMAND_CONTEXT_MENU_ORDER] = command.order;
         frontmatter[COPILOT_COMMAND_MODEL_KEY] = command.modelKey;
         frontmatter[COPILOT_COMMAND_LAST_USED] = command.lastUsedMs;
+        frontmatter[COPILOT_COMMAND_SYSTEM_PROMPT] = Boolean(command.isSystemPrompt);
+        frontmatter[COPILOT_COMMAND_COMPOSER_PROMPT] = Boolean(command.isComposerPrompt);
       });
 
       if (!mergedOptions.skipStoreUpdate) {
@@ -129,6 +133,8 @@ export class CustomCommandManager {
           frontmatter[COPILOT_COMMAND_CONTEXT_MENU_ORDER] = command.order;
           frontmatter[COPILOT_COMMAND_MODEL_KEY] = command.modelKey;
           frontmatter[COPILOT_COMMAND_LAST_USED] = command.lastUsedMs;
+          frontmatter[COPILOT_COMMAND_SYSTEM_PROMPT] = Boolean(command.isSystemPrompt);
+          frontmatter[COPILOT_COMMAND_COMPOSER_PROMPT] = Boolean(command.isComposerPrompt);
         });
       }
     } finally {

@@ -1,9 +1,11 @@
 import {
+  COPILOT_COMMAND_COMPOSER_PROMPT,
   COPILOT_COMMAND_CONTEXT_MENU_ENABLED,
   COPILOT_COMMAND_CONTEXT_MENU_ORDER,
   COPILOT_COMMAND_LAST_USED,
   COPILOT_COMMAND_MODEL_KEY,
   COPILOT_COMMAND_SLASH_ENABLED,
+  COPILOT_COMMAND_SYSTEM_PROMPT,
   EMPTY_COMMAND,
   LEGACY_SELECTED_TEXT_PLACEHOLDER,
   QUICK_COMMAND_CODE_BLOCK,
@@ -124,6 +126,8 @@ export async function parseCustomCommandFile(file: TFile): Promise<CustomCommand
   const lastUsedMs = metadata?.frontmatter?.[COPILOT_COMMAND_LAST_USED] ?? EMPTY_COMMAND.lastUsedMs;
   const order = metadata?.frontmatter?.[COPILOT_COMMAND_CONTEXT_MENU_ORDER] ?? EMPTY_COMMAND.order;
   const modelKey = metadata?.frontmatter?.[COPILOT_COMMAND_MODEL_KEY] ?? EMPTY_COMMAND.modelKey;
+  const isSystemPrompt = metadata?.frontmatter?.[COPILOT_COMMAND_SYSTEM_PROMPT] ?? false;
+  const isComposerPrompt = metadata?.frontmatter?.[COPILOT_COMMAND_COMPOSER_PROMPT] ?? false;
 
   return {
     title: file.basename,
@@ -133,6 +137,8 @@ export async function parseCustomCommandFile(file: TFile): Promise<CustomCommand
     showInSlashMenu,
     order,
     lastUsedMs,
+    isSystemPrompt,
+    isComposerPrompt,
   };
 }
 
@@ -163,6 +169,22 @@ export function sortCommandsByRecency(commands: CustomCommand[]): CustomCommand[
 
 export function sortCommandsByAlphabetical(commands: CustomCommand[]): CustomCommand[] {
   return [...commands].sort((a, b) => a.title.localeCompare(b.title));
+}
+
+/**
+ * Retrieve all commands marked as system prompts, ordered by their configured order.
+ */
+export function getSystemPromptCommands(): CustomCommand[] {
+  const commands = getCachedCustomCommands().filter((command) => command.isSystemPrompt);
+  return sortCommandsByOrder(commands);
+}
+
+/**
+ * Retrieve all commands marked as composer prompts, ordered by their configured order.
+ */
+export function getComposerPromptCommands(): CustomCommand[] {
+  const commands = getCachedCustomCommands().filter((command) => command.isComposerPrompt);
+  return sortCommandsByOrder(commands);
 }
 
 /**

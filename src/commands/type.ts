@@ -33,4 +33,14 @@ export interface CustomCommand {
    * Timestamp of the last time the custom command was used
    */
   lastUsedMs: number;
+
+  /**
+   * Whether this note should be treated as a system prompt document
+   */
+  isSystemPrompt?: boolean;
+
+  /**
+   * Whether this note should be treated as a composer prompt document
+   */
+  isComposerPrompt?: boolean;
 }

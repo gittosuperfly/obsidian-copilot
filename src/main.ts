@@ -9,7 +9,11 @@ import { LoadChatHistoryModal } from "@/components/modals/LoadChatHistoryModal";
 import { QUICK_COMMAND_CODE_BLOCK } from "@/commands/constants";
 import { registerContextMenu } from "@/commands/contextMenu";
 import { CustomCommandRegister } from "@/commands/customCommandRegister";
-import { migrateCommands, suggestDefaultCommands } from "@/commands/migrator";
+import {
+  migrateCommands,
+  migrateUserSystemPrompt,
+  suggestDefaultCommands,
+} from "@/commands/migrator";
 import { createQuickCommandContainer } from "@/components/QuickCommand";
 import { ABORT_REASON, CHAT_VIEWTYPE, DEFAULT_OPEN_AREA, EVENT_NAMES } from "@/constants";
 import { ChatManager } from "@/core/ChatManager";
@@ -152,7 +156,16 @@ export default class CopilotPlugin extends Plugin {
 
     this.customCommandRegister = new CustomCommandRegister(this, this.app.vault);
     this.app.workspace.onLayoutReady(() => {
-      this.customCommandRegister.initialize().then(migrateCommands).then(suggestDefaultCommands);
+      this.customCommandRegister
+        .initialize()
+        .then(async () => {
+          await migrateCommands();
+          await migrateUserSystemPrompt();
+          await suggestDefaultCommands();
+        })
+        .catch((error) => {
+          console.error("Failed to initialize custom commands", error);
+        });
     });
 
     // Initialize automatic selection handler

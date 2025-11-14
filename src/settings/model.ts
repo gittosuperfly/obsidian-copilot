@@ -5,6 +5,7 @@ import { UserMemoryManager } from "@/memory/UserMemoryManager";
 
 import { type ChainType } from "@/chainFactory";
 import {
+  COMPOSER_OUTPUT_INSTRUCTIONS,
   COPILOT_FOLDER_ROOT,
   DEFAULT_OPEN_AREA,
   DEFAULT_QA_EXCLUSIONS_SETTING,
@@ -12,6 +13,7 @@ import {
   DEFAULT_SYSTEM_PROMPT,
   SEND_SHORTCUT,
 } from "@/constants";
+import { getComposerPromptCommands, getSystemPromptCommands } from "@/commands/customCommandUtils";
 import { DEFAULT_LANGUAGE, Language } from "@/i18n/lang";
 import { logInfo } from "@/logger";
 
@@ -55,8 +57,6 @@ export interface CopilotSettings {
   maxTokens: number;
   contextTurns: number;
   lastDismissedVersion: string | null;
-  // Do not use this directly, use getSystemPrompt() instead
-  userSystemPrompt: string;
   stream: boolean;
   defaultSaveFolder: string;
   defaultConversationTag: string;
@@ -413,16 +413,31 @@ export function sanitizeSettings(settings: CopilotSettings): CopilotSettings {
 }
 
 export function getSystemPrompt(): string {
-  const userPrompt = getSettings().userSystemPrompt;
-  const basePrompt = DEFAULT_SYSTEM_PROMPT;
+  const promptDocuments = getSystemPromptCommands()
+    .map((command) => command.content?.trim())
+    .filter((content): content is string => Boolean(content && content.length > 0))
+    .join("\n\n")
+    .trim();
 
-  if (userPrompt) {
-    return `${basePrompt}
-<user_custom_instructions>
-${userPrompt}
-</user_custom_instructions>`;
+  if (promptDocuments.length > 0) {
+    return promptDocuments;
   }
-  return basePrompt;
+
+  return DEFAULT_SYSTEM_PROMPT;
+}
+
+export function getComposerPrompt(): string {
+  const promptDocuments = getComposerPromptCommands()
+    .map((command) => command.content?.trim())
+    .filter((content): content is string => Boolean(content && content.length > 0))
+    .join("\n\n")
+    .trim();
+
+  if (promptDocuments.length > 0) {
+    return promptDocuments;
+  }
+
+  return COMPOSER_OUTPUT_INSTRUCTIONS;
 }
 
 export async function getSystemPromptWithMemory(

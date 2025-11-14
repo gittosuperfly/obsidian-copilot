@@ -15,6 +15,7 @@ import { logError } from "@/logger";
 import { CustomPromptSyntaxInstruction } from "@/components/CustomPromptSyntaxInstruction";
 import { CustomCommand } from "@/commands/type";
 import { validateCommandName } from "@/commands/customCommandUtils";
+import { useI18n } from "@/i18n";
 
 type FormErrors = {
   title?: string;
@@ -41,6 +42,7 @@ function CustomCommandSettingsModalContent({
     }));
   const [command, setCommand] = useState(initialCommand);
   const [errors, setErrors] = useState<FormErrors>({});
+  const { t } = useI18n();
 
   const handleUpdate = (field: keyof CustomCommand, value: any) => {
     setCommand((prev) => ({
@@ -71,6 +73,25 @@ function CustomCommandSettingsModalContent({
     }
 
     onConfirm(command);
+  };
+
+  const isPromptDocument = command.isSystemPrompt || command.isComposerPrompt;
+
+  const handlePromptTypeChange = (type: "system" | "composer", value: boolean) => {
+    setCommand((prev) => {
+      const updatedCommand: CustomCommand = {
+        ...prev,
+        isSystemPrompt: type === "system" ? value : false,
+        isComposerPrompt: type === "composer" ? value : false,
+      };
+
+      if (value) {
+        updatedCommand.showInContextMenu = false;
+        updatedCommand.showInSlashMenu = false;
+      }
+
+      return updatedCommand;
+    });
   };
 
   return (
@@ -145,23 +166,52 @@ function CustomCommandSettingsModalContent({
         </div>
       </div>
 
-      <div className="tw-flex tw-items-center tw-gap-2">
-        <Checkbox
-          id="showInContextMenu"
-          checked={command.showInContextMenu}
-          onCheckedChange={(checked) => handleUpdate("showInContextMenu", checked)}
-        />
-        <Label htmlFor="showInContextMenu">Show in context menu</Label>
+      <div className="tw-flex tw-flex-col tw-gap-2">
+        <Label>{t("settings.command.promptTypeLabel")}</Label>
+        <div className="tw-flex tw-flex-col tw-gap-2">
+          <div className="tw-flex tw-items-center tw-gap-2">
+            <Checkbox
+              id="systemPrompt"
+              checked={command.isSystemPrompt === true}
+              onCheckedChange={(checked) => handlePromptTypeChange("system", checked === true)}
+            />
+            <Label htmlFor="systemPrompt">{t("settings.command.markAsSystemPrompt")}</Label>
+          </div>
+          <div className="tw-flex tw-items-center tw-gap-2">
+            <Checkbox
+              id="composerPrompt"
+              checked={command.isComposerPrompt === true}
+              onCheckedChange={(checked) => handlePromptTypeChange("composer", checked === true)}
+            />
+            <Label htmlFor="composerPrompt">{t("settings.command.markAsComposerPrompt")}</Label>
+          </div>
+          {isPromptDocument && (
+            <p className="tw-text-xs tw-text-muted">{t("settings.command.promptTypeInfo")}</p>
+          )}
+        </div>
       </div>
 
-      <div className="tw-flex tw-items-center tw-gap-2">
-        <Checkbox
-          id="showInSlashMenu"
-          checked={command.showInSlashMenu}
-          onCheckedChange={(checked) => handleUpdate("showInSlashMenu", checked)}
-        />
-        <Label htmlFor="showInSlashMenu">Show in slash menu</Label>
-      </div>
+      {!isPromptDocument && (
+        <>
+          <div className="tw-flex tw-items-center tw-gap-2">
+            <Checkbox
+              id="showInContextMenu"
+              checked={command.showInContextMenu}
+              onCheckedChange={(checked) => handleUpdate("showInContextMenu", checked === true)}
+            />
+            <Label htmlFor="showInContextMenu">Show in context menu</Label>
+          </div>
+
+          <div className="tw-flex tw-items-center tw-gap-2">
+            <Checkbox
+              id="showInSlashMenu"
+              checked={command.showInSlashMenu}
+              onCheckedChange={(checked) => handleUpdate("showInSlashMenu", checked === true)}
+            />
+            <Label htmlFor="showInSlashMenu">Show in slash menu</Label>
+          </div>
+        </>
+      )}
 
       <div className="tw-flex tw-justify-end tw-gap-2">
         <Button variant="secondary" onClick={onCancel}>

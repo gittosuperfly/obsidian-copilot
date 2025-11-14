@@ -12,58 +12,46 @@ export const AdvancedSettings: React.FC = () => {
 
   return (
     <div className="tw-space-y-4">
-      {/* Privacy Settings Section */}
-      <section>
+      <section className="tw-space-y-4">
         <SettingItem
-          type="textarea"
-          title={t("settings.advanced.systemPrompt.title")}
-          description={t("settings.advanced.systemPrompt.description")}
-          value={settings.userSystemPrompt}
-          onChange={(value) => updateSetting("userSystemPrompt", value)}
-          placeholder={t("settings.advanced.systemPrompt.placeholder")}
+          type="switch"
+          title={t("settings.advanced.encryption.title")}
+          description={t("settings.advanced.encryption.description")}
+          checked={settings.enableEncryption}
+          onCheckedChange={(checked) => {
+            updateSetting("enableEncryption", checked);
+          }}
         />
 
-        <div className="tw-space-y-4">
-          <SettingItem
-            type="switch"
-            title={t("settings.advanced.encryption.title")}
-            description={t("settings.advanced.encryption.description")}
-            checked={settings.enableEncryption}
-            onCheckedChange={(checked) => {
-              updateSetting("enableEncryption", checked);
-            }}
-          />
+        <SettingItem
+          type="switch"
+          title={t("settings.advanced.debug.title")}
+          description={t("settings.advanced.debug.description")}
+          checked={settings.debug}
+          onCheckedChange={(checked) => {
+            updateSetting("debug", checked);
+          }}
+        />
 
-          <SettingItem
-            type="switch"
-            title={t("settings.advanced.debug.title")}
-            description={t("settings.advanced.debug.description")}
-            checked={settings.debug}
-            onCheckedChange={(checked) => {
-              updateSetting("debug", checked);
+        <SettingItem
+          type="custom"
+          title={t("settings.advanced.logFile.title")}
+          description={t("settings.advanced.logFile.description", {
+            path: logFileManager.getLogPath(),
+          })}
+        >
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={async () => {
+              await flushRecordedPromptPayloadToLog();
+              await logFileManager.flush();
+              await logFileManager.openLogFile();
             }}
-          />
-
-          <SettingItem
-            type="custom"
-            title={t("settings.advanced.logFile.title")}
-            description={t("settings.advanced.logFile.description", {
-              path: logFileManager.getLogPath(),
-            })}
           >
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={async () => {
-                await flushRecordedPromptPayloadToLog();
-                await logFileManager.flush();
-                await logFileManager.openLogFile();
-              }}
-            >
-              {t("settings.advanced.logFile.button")}
-            </Button>
-          </SettingItem>
-        </div>
+            {t("settings.advanced.logFile.button")}
+          </Button>
+        </SettingItem>
       </section>
     </div>
   );

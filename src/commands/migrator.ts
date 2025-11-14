@@ -1,21 +1,33 @@
 import { CustomCommandManager } from "@/commands/customCommandManager";
 import { getCustomCommandsFolder, validateCommandName } from "@/commands/customCommandUtils";
 import { CustomCommand } from "@/commands/type";
-import { getSettings, updateSetting } from "@/settings/model";
+import {
+  CopilotSettings,
+  getSettings,
+  settingsAtom,
+  settingsStore,
+  updateSetting,
+} from "@/settings/model";
 import { ensureFolderExists } from "@/utils";
 import {
+  COPILOT_COMMAND_CONTEXT_MENU_ENABLED,
   COPILOT_COMMAND_CONTEXT_MENU_ORDER,
   COPILOT_COMMAND_LAST_USED,
   COPILOT_COMMAND_MODEL_KEY,
   COPILOT_COMMAND_SLASH_ENABLED,
+  EMPTY_COMMAND,
   getDefaultCommandsForLanguage,
 } from "@/commands/constants";
-import { COPILOT_COMMAND_CONTEXT_MENU_ENABLED } from "@/commands/constants";
 import { ConfirmModal } from "@/components/modals/ConfirmModal";
 import { getCachedCustomCommands } from "@/commands/state";
 import { DEFAULT_LANGUAGE } from "@/i18n";
 import { Language } from "@/i18n/lang";
 import { DefaultCommandsOnboardingModal } from "@/components/modals/DefaultCommandsOnboardingModal";
+
+const USER_PROMPT_TITLES: Record<Language, string> = {
+  en: "User Custom System Prompt",
+  zh: "用户自定义系统提示词",
+};
 
 async function saveUnsupportedCommands(commands: CustomCommand[]) {
   const folderPath = getCustomCommandsFolder();
@@ -119,5 +131,61 @@ export async function suggestDefaultCommands(): Promise<void> {
     );
     modal.open();
     updateSetting("suggestedDefaultCommands", true);
+  }
+}
+
+export async function migrateUserSystemPrompt(): Promise<void> {
+  const settings = getSettings();
+  const legacyPrompt = (
+    settings as unknown as {
+      userSystemPrompt?: string;
+    }
+  ).userSystemPrompt;
+
+  if (!legacyPrompt || !legacyPrompt.trim()) {
+    return;
+  }
+
+  const resolvedLanguage = settings.language ?? DEFAULT_LANGUAGE;
+  const fallbackTitle = USER_PROMPT_TITLES.en;
+  const title = USER_PROMPT_TITLES[resolvedLanguage] ?? fallbackTitle;
+
+  const existingCommands = getCachedCustomCommands();
+  const existing = existingCommands.find((command) => command.title === title);
+
+  const promptCommand: CustomCommand = existing
+    ? {
+        ...existing,
+        content: legacyPrompt,
+        isSystemPrompt: true,
+        isComposerPrompt: false,
+        showInContextMenu: false,
+        showInSlashMenu: false,
+      }
+    : {
+        ...EMPTY_COMMAND,
+        title,
+        content: legacyPrompt,
+        showInContextMenu: false,
+        showInSlashMenu: false,
+        order: 100,
+        modelKey: "",
+        lastUsedMs: 0,
+        isSystemPrompt: true,
+        isComposerPrompt: false,
+      };
+
+  const manager = CustomCommandManager.getInstance();
+  if (existing) {
+    await manager.updateCommand(promptCommand, existing.title);
+  } else {
+    await manager.createCommand(promptCommand, { autoOrder: false });
+  }
+
+  // Remove userSystemPrompt from settings if it exists (for legacy compatibility)
+  const settingsRecord = getSettings() as unknown as Record<string, unknown>;
+  if ("userSystemPrompt" in settingsRecord) {
+    delete settingsRecord.userSystemPrompt;
+    settingsStore.set(settingsAtom, settingsRecord as unknown as CopilotSettings);
   }
 }

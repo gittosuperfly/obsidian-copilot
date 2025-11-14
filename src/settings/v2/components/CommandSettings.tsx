@@ -2,7 +2,7 @@ import React, { useMemo, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { useCustomCommands } from "@/commands/state";
 import { MobileCard, MobileCardDropdownAction } from "@/components/ui/mobile-card";
-import { Copy, GripVertical, Lightbulb, PenLine, Plus, Trash2 } from "lucide-react";
+import { Copy, GripVertical, Lightbulb, PenLine, Plus, Trash2, Cog, Sparkles } from "lucide-react";
 import { useI18n } from "@/i18n";
 
 import { Checkbox } from "@/components/ui/checkbox";
@@ -50,6 +50,30 @@ import { ConfirmModal } from "@/components/modals/ConfirmModal";
 import { SettingItem } from "@/components/ui/setting-item";
 import { Notice } from "obsidian";
 
+const CommandTypeBadge: React.FC<{ command: CustomCommand }> = ({ command }) => {
+  const { t } = useI18n();
+
+  if (command.isSystemPrompt) {
+    return (
+      <span className="tw-bg-blue-rgb/10 dark:tw-bg-blue-rgb/20 tw-inline-flex tw-items-center tw-gap-1 tw-rounded-full tw-px-2 tw-py-0.5 tw-text-[11px] tw-font-medium tw-text-context-manager-blue dark:tw-text-context-manager-blue">
+        <Cog className="tw-size-3" />
+        {t("settings.command.systemPromptIndicator")}
+      </span>
+    );
+  }
+
+  if (command.isComposerPrompt) {
+    return (
+      <span className="tw-bg-purple-rgb/10 dark:tw-bg-purple-rgb/20 tw-inline-flex tw-items-center tw-gap-1 tw-rounded-full tw-px-2 tw-py-0.5 tw-text-[11px] tw-font-medium tw-text-context-manager-purple dark:tw-text-context-manager-purple">
+        <Sparkles className="tw-size-3" />
+        {t("settings.command.composerPromptIndicator")}
+      </span>
+    );
+  }
+
+  return null;
+};
+
 const MobileCommandCard: React.FC<{
   command: CustomCommand;
   commands: CustomCommand[];
@@ -95,8 +119,14 @@ const MobileCommandCard: React.FC<{
     },
   ];
 
+  const typeBadge =
+    command.isSystemPrompt || command.isComposerPrompt ? (
+      <CommandTypeBadge command={command} />
+    ) : null;
+
   const expandedContent = (
-    <div className="tw-flex tw-flex-wrap tw-justify-around">
+    <div className="tw-flex tw-flex-wrap tw-justify-around tw-gap-3">
+      {typeBadge && <div className="tw-flex tw-w-full tw-justify-center">{typeBadge}</div>}
       <div className="tw-flex tw-items-center tw-justify-between tw-gap-2">
         <div className="tw-flex tw-items-center tw-gap-1">
           <span className="tw-text-sm tw-font-medium">{t("settings.command.table.inMenu")}</span>
@@ -188,6 +218,11 @@ const SortableTableRow: React.FC<{
     onRemove(command);
   };
 
+  const typeBadge =
+    command.isSystemPrompt || command.isComposerPrompt ? (
+      <CommandTypeBadge command={command} />
+    ) : null;
+
   return (
     <TableRow
       ref={setNodeRef}
@@ -207,7 +242,12 @@ const SortableTableRow: React.FC<{
           <GripVertical className="tw-size-4" />
         </div>
       </TableCell>
-      <TableCell>{command.title}</TableCell>
+      <TableCell>
+        <div className="tw-flex tw-flex-wrap tw-items-center tw-gap-2">
+          <span>{command.title}</span>
+          {typeBadge}
+        </div>
+      </TableCell>
       <TableCell className="tw-text-center">
         <Checkbox
           checked={command.showInContextMenu}

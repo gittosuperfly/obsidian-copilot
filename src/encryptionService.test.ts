@@ -128,13 +128,11 @@ describe("EncryptionService", () => {
       const settings = {
         enableEncryption: true,
         providers,
-        userSystemPrompt: "shouldBeIgnored",
       } as unknown as CopilotSettings;
 
       const newSettings = await encryptAllKeys(settings);
       expect(newSettings.providers[0].apiKey).toMatch(/^enc_(desk|web)_[A-Za-z0-9+/=]+$/);
       expect(newSettings.providers[1].apiKey).toMatch(/^enc_(desk|web)_[A-Za-z0-9+/=]+$/);
-      expect(newSettings.userSystemPrompt).toBe("shouldBeIgnored");
 
       // Verify we can decrypt the keys back
       const decryptedOpenAI = await getDecryptedKey(newSettings.providers[0].apiKey);
@@ -170,11 +168,9 @@ describe("EncryptionService", () => {
       const newSettings = await encryptAllKeys({
         enableEncryption: false,
         providers,
-        userSystemPrompt: "shouldBeIgnored",
       } as unknown as CopilotSettings);
       expect(newSettings.providers[0].apiKey).toBe("testApiKey");
       expect(newSettings.providers[1].apiKey).toBe("anotherTestApiKey");
-      expect(newSettings.userSystemPrompt).toBe("shouldBeIgnored");
     });
   });
 });
