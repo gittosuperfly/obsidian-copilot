@@ -8,6 +8,7 @@ import {
   LexicalNode,
   NodeKey,
 } from "lexical";
+import { FileText } from "lucide-react";
 import { BasePillNode, SerializedBasePillNode } from "./BasePillNode";
 import { TruncatedPillText } from "./TruncatedPillText";
 import { PillBadge } from "./PillBadge";
@@ -153,6 +154,7 @@ function NotePillComponent({ node }: NotePillComponentProps): JSX.Element {
   return (
     <PillBadge onClick={handleClick}>
       <div className="tw-flex tw-items-center tw-gap-1.5">
+        <FileText className="tw-size-3 tw-text-muted" />
         <TruncatedPillText
           content={noteTitle}
           openBracket=""

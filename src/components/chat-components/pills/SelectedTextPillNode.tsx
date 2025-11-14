@@ -8,6 +8,7 @@ import {
   LexicalNode,
   NodeKey,
 } from "lexical";
+import { Highlighter } from "lucide-react";
 import { BasePillNode, SerializedBasePillNode } from "./BasePillNode";
 import { TruncatedPillText } from "./TruncatedPillText";
 import { PillBadge } from "./PillBadge";
@@ -184,6 +185,7 @@ function SelectedTextPillComponent({ node }: SelectedTextPillComponentProps): JS
   return (
     <PillBadge onClick={handleClick}>
       <div className="tw-flex tw-items-center tw-gap-1.5">
+        <Highlighter className="tw-size-3 tw-text-muted" />
         <TruncatedPillText
           content={noteTitle}
           openBracket=""

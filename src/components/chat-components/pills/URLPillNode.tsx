@@ -8,6 +8,7 @@ import {
   LexicalNode,
   NodeKey,
 } from "lexical";
+import { Link } from "lucide-react";
 import { BasePillNode, SerializedBasePillNode } from "./BasePillNode";
 import { PillBadge } from "./PillBadge";
 import { usePillMaxWidth } from "./pillUtils";
@@ -145,6 +146,7 @@ function URLPillComponent({ node }: URLPillComponentProps): JSX.Element {
   return (
     <PillBadge className="tw-whitespace-nowrap">
       <div className="tw-flex tw-items-center tw-gap-1.5">
+        <Link className="tw-size-3 tw-text-muted" />
         <span className={cn("tw-truncate tw-text-xs", maxWidth)}>{displayText}</span>
         {node.__isActive && <span className="tw-text-[10px] tw-text-faint">Active</span>}
       </div>

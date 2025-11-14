@@ -1,5 +1,8 @@
+import React from "react";
 import { $getRoot, DOMConversionMap, DOMConversionOutput, LexicalNode, NodeKey } from "lexical";
+import { Wrench } from "lucide-react";
 import { BasePillNode, SerializedBasePillNode } from "./BasePillNode";
+import { PillBadge } from "./PillBadge";
 
 export interface SerializedToolPillNode extends SerializedBasePillNode {
   type: "tool-pill";
@@ -58,6 +61,20 @@ export class ToolPillNode extends BasePillNode {
   // Convenience getter for backward compatibility
   getToolName(): string {
     return this.getValue();
+  }
+
+  /**
+   * Override decorate to add markdown icon
+   */
+  decorate(): JSX.Element {
+    return (
+      <PillBadge>
+        <div className="tw-flex tw-items-center tw-gap-1.5">
+          <Wrench className="tw-size-3 tw-text-muted" />
+          <span>{this.__value}</span>
+        </div>
+      </PillBadge>
+    );
   }
 }
 

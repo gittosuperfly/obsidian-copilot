@@ -1,5 +1,6 @@
 import React from "react";
 import { TFile, App, TFolder } from "obsidian";
+import { FileText, Folder, Link, Wrench } from "lucide-react";
 import { parseTextForPills } from "./utils/lexicalTextUtils";
 import { cn } from "@/lib/utils";
 import { PillBadge } from "./pills/PillBadge";
@@ -70,6 +71,7 @@ export function MessageContentWithPills({
             return (
               <PillBadge key={index} onClick={handleClick}>
                 <div className="tw-flex tw-items-center tw-gap-1.5">
+                  <FileText className="tw-size-3 tw-text-muted" />
                   <TruncatedPillText
                     content={noteTitle}
                     openBracket=""
@@ -86,6 +88,7 @@ export function MessageContentWithPills({
             return (
               <PillBadge key={index}>
                 <div className="tw-flex tw-items-center tw-gap-1.5">
+                  <Link className="tw-size-3 tw-text-muted" />
                   <TruncatedPillText
                     content={segment.url}
                     openBracket=""
@@ -100,6 +103,7 @@ export function MessageContentWithPills({
             return (
               <PillBadge key={index}>
                 <div className="tw-flex tw-items-center tw-gap-1.5">
+                  <Wrench className="tw-size-3 tw-text-muted" />
                   <TruncatedPillText
                     content={segment.toolName}
                     openBracket="@"
@@ -132,6 +136,7 @@ export function MessageContentWithPills({
             return (
               <PillBadge key={index} onClick={handleClick}>
                 <div className="tw-flex tw-items-center tw-gap-1.5">
+                  <Folder className="tw-size-3 tw-text-muted" />
                   <TruncatedPillText
                     content={segment.folder.name}
                     openBracket=""

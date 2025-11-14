@@ -7,6 +7,7 @@ import {
   LexicalNode,
   NodeKey,
 } from "lexical";
+import { Folder } from "lucide-react";
 import { BasePillNode, SerializedBasePillNode } from "./BasePillNode";
 import { TruncatedPillText } from "./TruncatedPillText";
 import { PillBadge } from "./PillBadge";
@@ -125,13 +126,16 @@ function FolderPillComponent({ node }: FolderPillComponentProps): JSX.Element {
 
   return (
     <PillBadge onClick={handleClick}>
-      <TruncatedPillText
-        content={node.getFolderPath()}
-        openBracket=""
-        closeBracket=""
-        tooltipContent={tooltipContent}
-        maxWidth={maxWidth}
-      />
+      <div className="tw-flex tw-items-center tw-gap-1.5">
+        <Folder className="tw-size-3 tw-text-muted" />
+        <TruncatedPillText
+          content={node.getFolderPath()}
+          openBracket=""
+          closeBracket=""
+          tooltipContent={tooltipContent}
+          maxWidth={maxWidth}
+        />
+      </div>
     </PillBadge>
   );
 }

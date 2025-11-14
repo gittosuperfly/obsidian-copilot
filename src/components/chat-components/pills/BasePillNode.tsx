@@ -6,6 +6,7 @@ import {
   NodeKey,
   SerializedLexicalNode,
 } from "lexical";
+import { FileText } from "lucide-react";
 import { IPillNode } from "../plugins/PillDeletionPlugin";
 import { PillBadge } from "./PillBadge";
 
@@ -139,7 +140,14 @@ export abstract class BasePillNode extends DecoratorNode<JSX.Element> implements
    * Default rendering with PillBadge component - subclasses can override for custom rendering.
    */
   decorate(): JSX.Element {
-    return <PillBadge>{this.__value}</PillBadge>;
+    return (
+      <PillBadge>
+        <div className="tw-flex tw-items-center tw-gap-1.5">
+          <FileText className="tw-size-3 tw-text-muted" />
+          <span>{this.__value}</span>
+        </div>
+      </PillBadge>
+    );
   }
 
   // Abstract methods that subclasses must implement
