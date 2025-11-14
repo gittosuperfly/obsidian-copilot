@@ -248,6 +248,16 @@ const en = {
   "settings.api.model.checkKey": "Check API key or network.",
   "settings.api.model.empty": "No models available for this provider.",
   "settings.api.model.hint": "Click to load models or expand again if the API key changed.",
+  "onboarding.commands.title": "Welcome to Copilot",
+  "onboarding.commands.description":
+    "Would you like to add Copilot recommended commands to your custom prompts folder? They will appear in the right-click menu and slash commands.",
+  "onboarding.commands.languageLabel": "Language",
+  "onboarding.commands.languageNote":
+    "You can change the interface language later in Settings → General.",
+  "onboarding.commands.notice":
+    "Default commands are stored as markdown files in your custom prompts folder and can be edited anytime.",
+  "onboarding.commands.confirm": "Add default commands",
+  "onboarding.commands.skip": "Skip for now",
   "settings.providers.addDialog.title": "Add Provider",
   "settings.providers.addDialog.description": "Store a provider's base URL and API key for reuse.",
   "settings.providers.addDialog.type.label": "Provider Type",
@@ -925,6 +935,15 @@ const zh: Record<TranslationKey, string> = {
   "settings.api.model.checkKey": "请检查 API Key 或网络。",
   "settings.api.model.empty": "该提供商暂无可用模型。",
   "settings.api.model.hint": "点击以加载模型，或在修改 API Key 后重新展开。",
+  "onboarding.commands.title": "欢迎使用 Copilot",
+  "onboarding.commands.description":
+    "是否将 Copilot 推荐命令添加到自定义提示文件夹？添加后可在右键菜单与斜杠菜单中快速使用。",
+  "onboarding.commands.languageLabel": "界面语言",
+  "onboarding.commands.languageNote": "你随时可以在「设置 → 常规」中重新调整语言。",
+  "onboarding.commands.notice":
+    "默认命令会以 Markdown 文件存放在自定义提示文件夹，可随时修改或删除。",
+  "onboarding.commands.confirm": "添加默认命令",
+  "onboarding.commands.skip": "暂时跳过",
   "settings.providers.addDialog.title": "添加提供商",
   "settings.providers.addDialog.description": "保存提供商的基础 URL 和 API Key 以便复用。",
   "settings.providers.addDialog.type.label": "提供商类型",

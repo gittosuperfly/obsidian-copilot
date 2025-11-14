@@ -8,11 +8,14 @@ import {
   COPILOT_COMMAND_LAST_USED,
   COPILOT_COMMAND_MODEL_KEY,
   COPILOT_COMMAND_SLASH_ENABLED,
-  DEFAULT_COMMANDS,
+  getDefaultCommandsForLanguage,
 } from "@/commands/constants";
 import { COPILOT_COMMAND_CONTEXT_MENU_ENABLED } from "@/commands/constants";
 import { ConfirmModal } from "@/components/modals/ConfirmModal";
 import { getCachedCustomCommands } from "@/commands/state";
+import { DEFAULT_LANGUAGE } from "@/i18n";
+import { Language } from "@/i18n/lang";
+import { DefaultCommandsOnboardingModal } from "@/components/modals/DefaultCommandsOnboardingModal";
 
 async function saveUnsupportedCommands(commands: CustomCommand[]) {
   const folderPath = getCustomCommandsFolder();
@@ -87,9 +90,11 @@ export async function migrateCommands() {
 }
 
 /** Generates the default commands. */
-export async function generateDefaultCommands(): Promise<void> {
+export async function generateDefaultCommands(languageOverride?: Language): Promise<void> {
   const existingCommands = getCachedCustomCommands();
-  const defaultCommands = DEFAULT_COMMANDS.filter(
+  const resolvedLanguage = languageOverride ?? getSettings().language ?? DEFAULT_LANGUAGE;
+  const defaultCommandsForLanguage = getDefaultCommandsForLanguage(resolvedLanguage);
+  const defaultCommands = defaultCommandsForLanguage.filter(
     (command) => !existingCommands.some((c) => c.title === command.title)
   );
   const newCommands = [...existingCommands, ...defaultCommands];
@@ -105,16 +110,14 @@ export async function suggestDefaultCommands(): Promise<void> {
   }
   const existingCommands = getCachedCustomCommands();
   if (existingCommands.length === 0) {
-    new ConfirmModal(
+    const modal = new DefaultCommandsOnboardingModal(
       app,
-      () => {
-        generateDefaultCommands();
+      (language) => {
+        generateDefaultCommands(language);
       },
-      "Would you like to add Copilot recommended commands in your custom prompts folder? These commands will be available through the right-click context menu and slash commands in chat.",
-      "Welcome to Copilot",
-      "Confirm",
-      "Skip"
-    ).open();
+      () => {}
+    );
+    modal.open();
     updateSetting("suggestedDefaultCommands", true);
   }
 }

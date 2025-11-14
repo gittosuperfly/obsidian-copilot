@@ -58,21 +58,18 @@ const SettingsContent: React.FC = () => {
 
   return (
     <div className="tw-flex tw-flex-col">
-      <div className="tw-flex tw-flex-wrap tw-rounded-lg">
-        {tabs.map((tab, index) => (
+      <div className="tw-mb-3 tw-flex tw-flex-nowrap tw-items-center tw-gap-6 tw-overflow-x-auto tw-border-b tw-pl-1 tw-border-border/70">
+        {tabs.map((tab) => (
           <TabItem
             key={tab.id}
             tab={tab}
             isSelected={selectedTab === tab.id}
             onClick={() => setSelectedTab(tab.id)}
-            isFirst={index === 0}
-            isLast={index === tabs.length - 1}
           />
         ))}
       </div>
-      <div className="tw-w-full tw-border tw-border-solid" />
 
-      <div>
+      <div className="tw-pt-4">
         {TAB_IDS.map((id) => {
           const Component = components[id];
           return (

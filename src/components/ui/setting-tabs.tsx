@@ -11,66 +11,56 @@ interface TabItemProps {
   tab: TabItem;
   isSelected: boolean;
   onClick: () => void;
-  isFirst: boolean;
-  isLast: boolean;
 }
 
-export const TabItem: React.FC<TabItemProps> = ({ tab, isSelected, onClick, isFirst, isLast }) => {
+export const TabItem: React.FC<TabItemProps> = ({ tab, isSelected, onClick }) => {
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      onClick();
+    }
+  };
+
   return (
     <div
       role="tab"
+      tabIndex={0}
       id={`tab-${tab.id}`}
       aria-controls={`tabpanel-${tab.id}`}
       aria-selected={isSelected}
       onClick={onClick}
+      onKeyDown={handleKeyDown}
       className={cn(
-        "tw-flex tw-flex-row tw-items-center",
-        "tw-h-8",
-        "tw-px-2 tw-py-1",
-        "tw-gap-1.5",
-        "tw-cursor-pointer",
-        "tw-overflow-hidden",
-        "tw-whitespace-nowrap",
-        "tw-text-sm",
-        "tw-border tw-border-solid tw-border-border",
-        "tw-rounded-b-[2px] tw-rounded-t-sm",
-        "tw-bg-primary",
-        "tw-transition-all tw-duration-300 tw-ease-in-out",
-        "hover:tw-border-interactive-accent",
-        isSelected && [
-          "!tw-bg-interactive-accent",
-          "tw-text-on-accent",
-          "!tw-max-w-full",
-          "tw-transition-all tw-duration-300 tw-ease-in-out",
-          "tw-delay-100",
-        ],
-        "lg:tw-max-w-32",
-        "md:tw-max-w-32"
+        "tw-relative tw-flex tw-items-center tw-gap-1.5",
+        "tw-py-3 tw-pr-4",
+        "tw-text-base",
+        "tw-font-medium tw-leading-none",
+        "tw-text-muted hover:tw-text-normal",
+        "tw-transition-colors tw-duration-150",
+        "tw-cursor-pointer tw-select-none"
       )}
     >
-      <div
-        className={cn(
-          "tw-flex tw-items-center tw-justify-center",
-          "tw-size-4",
-          "tw-transition-transform tw-duration-200 tw-ease-in-out",
-          isSelected
-            ? "tw-max-w-[16px] tw-translate-x-0 tw-opacity-100"
-            : "tw-max-w-0 tw--translate-x-4 tw-opacity-0"
-        )}
-      >
-        {tab.icon}
-      </div>
-      <span
-        className={cn(
-          "tw-text-sm",
-          "tw-font-medium",
-          "tw-transition-all tw-duration-200 tw-ease-in-out",
-          "tw-overflow-hidden tw-whitespace-nowrap",
-          "tw-max-w-[100px] tw-translate-x-0 tw-opacity-100"
-        )}
-      >
+      <span className="tw-flex tw-items-center tw-gap-2 tw-leading-none">
+        <span
+          className={cn(
+            "tw-flex tw-items-center tw-justify-center",
+            "tw-text-[1.05rem] tw-leading-none",
+            isSelected ? "tw-text-accent" : "tw-text-muted"
+          )}
+        >
+          {tab.icon}
+        </span>
         {tab.label}
       </span>
+      <span
+        aria-hidden="true"
+        className={cn(
+          "tw-absolute tw-inset-x-0 tw-bottom-[-2px]",
+          "tw-h-0.5 tw-rounded-full",
+          "tw-transition-colors tw-duration-150",
+          isSelected ? "tw-bg-accent" : "tw-bg-transparent"
+        )}
+      />
     </div>
   );
 };
